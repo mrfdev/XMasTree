@@ -32,6 +32,62 @@ The checked-in source targets Paper 26.1.2 only.
 - Optional PlaceholderAPI placeholders for CMI holograms, ajLeaderboards, scoreboards, and menus.
 - Legacy `trees.yml` world-name alias support for renamed destination worlds.
 
+## v2 changelog
+
+- modernize the plugin from the legacy deployed build to an actively maintained Paper 26.1.2 / Java 25 Gradle build
+- simplify the build around the active Paper 26.1.2 target and remove the retired 1.21.11 local server dependency
+- keep build output clean and predictable in `build/libs` with the 2026 versioned jar naming
+
+- keep legacy tree data compatible by continuing to read `plugins/X-Mas/trees.yml`
+- add world alias migration support so old saved trees can survive renamed worlds
+- preserve old event data while modernizing the runtime and admin tooling
+
+- make `/xmastree` the primary command
+- keep `/xmas` as an optional legacy alias controlled by config
+- fix legacy alias reload and unregister behavior so reload no longer crashes when alias settings change
+- improve `/xmastree help` output and keep it aligned with the actual command surface
+
+- add granular permissions under `onembxmastree.*`
+- replace the old `xmas.admin` permission with `onembxmastree.admin`
+- add separate permissions for `status`, `help`, `give`, `gifts`, `addhand`, `reload`, `debug`, `debug.toggle`, `end`, and `tree.override`
+
+- add a modern debug system with named categories: `status`, `commands`, `permissions`, `placeholders`, and `config`
+- keep numeric debug pages working as a legacy shortcut
+- improve debug output formatting with clearer key/value coloring
+- make invalid debug page or section requests return a helpful response instead of silently falling back
+- add `/xmastree debug toggle <key> true|false` for live boolean config changes
+- keep tab completion focused on named debug categories instead of numeric page suggestions
+
+- add optional PlaceholderAPI support with the `onembxmastree` namespace
+- add placeholders for event state, end time, end countdown, auto-end, resource-back, particles, luck, tree totals, owner totals, player tree count, and plugin version
+- document placeholders in the README and show them in debug output
+
+- modernize message handling with MiniMessage support while keeping legacy color compatibility
+- improve player-facing text, prefixes, debug output, and help text
+- change the visible plugin and chat identity toward `XMas Tree` for clearer user-facing output
+- make the Christmas Crystal display name non-italic
+
+- fix `resource-back` so destroying a tree returns only the materials actually spent on that tree
+- fix the old refund dupe issue where the plugin could return more than the player had used
+- improve refund delivery with fallback order: chest, barrel, player inventory, then floor drops
+
+- reduce the loud grow and ingredient sound behavior
+- make first-hit and repeat-hit grow sound volumes configurable and reloadable
+- support silent, quiet, and loud tuning through config without server restarts
+
+- modernize material and item handling for current Paper names
+- use safer material matching and validation to avoid legacy enum failures
+- improve displayed item names so materials such as Redstone Dust render properly in requirement output
+- add configurable per-stage particle effects using modern Paper particle names
+
+- harden config and item parsing by restricting present texture URLs to `textures.minecraft.net`
+- cap Base64 gift payload handling
+- skip invalid or legacy material names safely
+
+- update config comments and improve documentation for installation, building, commands, permissions, placeholders, support, and credits
+- point support to the GitHub issues page
+- refresh `.gitignore` for local dev/test folders and obvious OS/build junk
+
 ## Installation
 
 1. Stop the Paper server.
