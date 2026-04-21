@@ -13,4 +13,4 @@ With this plugin you can plant your Christmas tree and upgrade it. Look for some
 * **LoneDev6** - *Optimization patches* - [LoneDev6](https://github.com/LoneDev6)
 * **montlikadani** - *Translation (hu)* - [montlikadani](https://github.com/montlikadani)
 
-See also the list of [contributors](https://github.com/MelonCode/X-Mas/graphs/contributors) who participated in this project.
+See also the list of [contributors](https://github.com/MelonCode/X-Mas/graphs/contributors) who participated in this project. 
