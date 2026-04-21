@@ -1,0 +1,69 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.onemb.xmas'
+version = '2.0.1-010'
+
+def legacyArchiveName = '1MB-XMas-2026-v2.0.0-004-v21-1.21.8.jar'
+def paper2612ArchiveName = '1MB-XMas-2026-v2.0.1-010-v25-26.1.2.jar'
+
+def serverOne = layout.projectDirectory.dir('servers/Server-One-Paper-1.21.11')
+def serverTwo = layout.projectDirectory.dir('servers/Server-Two-Paper-26.1.2')
+def legacyServerJar = serverOne.file('plugins/1MB-X-Mas_2025-1.21.8.jar')
+def placeholderApiJar = serverTwo.file('plugins/PlaceholderAPI-2.12.3-DEV-265.jar')
+
+def paper2612Api = serverTwo.file('libraries/io/papermc/paper/paper-api/26.1.2.build.18-alpha/paper-api-26.1.2.build.18-alpha.jar')
+
+def paper2612Classpath = files(paper2612Api) + fileTree(dir: serverTwo.dir('libraries').asFile, include: '**/*.jar')
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+dependencies {
+    compileOnly paper2612Classpath
+    compileOnly files(placeholderApiJar)
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 25
+}
+
+tasks.named('processResources') {
+    filteringCharset = 'UTF-8'
+    filesMatching('plugin.yml') {
+        expand(version: project.version)
+    }
+}
+
+tasks.named('jar') {
+    archiveFileName = paper2612ArchiveName
+}
+
+tasks.register('paper2612Jar') {
+    description = 'Assembles the Paper 26.1.2 Java 25 plugin jar.'
+    group = 'build'
+    dependsOn tasks.named('jar')
+}
+
+tasks.register('legacyJar', Copy) {
+    description = 'Copies the deployed legacy jar into the requested 2026 legacy filename.'
+    group = 'build'
+    from(legacyServerJar)
+    into(layout.buildDirectory.dir('libs'))
+    rename { legacyArchiveName }
+}
+
+tasks.register('buildAllJars') {
+    description = 'Builds the legacy reference jar plus the modern Paper 26.1.2 target jar.'
+    group = 'build'
+    dependsOn tasks.named('legacyJar'), tasks.named('jar')
+}
+
+tasks.named('assemble') {
+    dependsOn tasks.named('legacyJar'), tasks.named('paper2612Jar')
+}

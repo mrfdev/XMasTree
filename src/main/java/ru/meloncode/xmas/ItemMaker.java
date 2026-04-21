@@ -2,12 +2,13 @@ package ru.meloncode.xmas;
 
 //I plan to make this plugin bigger. So... 
 
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
+import net.kyori.adventure.text.format.TextDecoration;
+import ru.meloncode.xmas.utils.TextUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,14 +26,14 @@ public class ItemMaker {
     public ItemMaker(Material material, String name) {
         is = new ItemStack(material);
         im = is.getItemMeta();
-        im.setDisplayName(name);
+        im.displayName(TextUtils.parse(name).decoration(TextDecoration.ITALIC, false));
     }
 
     public ItemMaker(Material material, String name, List<String> lore) {
         is = new ItemStack(material);
         im = is.getItemMeta();
-        im.setDisplayName(name);
-        im.setLore(lore);
+        im.displayName(TextUtils.parse(name).decoration(TextDecoration.ITALIC, false));
+        im.lore(TextUtils.parseList(lore));
     }
 
     public ItemMaker(Material material, int amount, short durability) {
@@ -43,14 +44,14 @@ public class ItemMaker {
     public ItemMaker(Material material, int amount, short durability, String name) {
         is = new ItemStack(material, amount);
         im = is.getItemMeta();
-        im.setDisplayName(name);
+        im.displayName(TextUtils.parse(name).decoration(TextDecoration.ITALIC, false));
     }
 
     public ItemMaker(Material material, int amount, short durability, String name, List<String> lore) {
         is = new ItemStack(material, amount);
         im = is.getItemMeta();
-        im.setDisplayName(name);
-        im.setLore(lore);
+        im.displayName(TextUtils.parse(name).decoration(TextDecoration.ITALIC, false));
+        im.lore(TextUtils.parseList(lore));
     }
 
     public ItemMaker setAmount(int amount) {
@@ -59,18 +60,19 @@ public class ItemMaker {
     }
 
     public ItemMaker setDurability(short data) {
-        //is.setDurability(data);
-        ((Damageable) is).setDamage(data);
+        if (im instanceof Damageable damageable) {
+            damageable.setDamage(data);
+        }
         return this;
     }
 
     public ItemMaker setName(String name) {
-        im.setDisplayName(ChatColor.RESET + name);
+        im.displayName(TextUtils.parse("<reset>" + name).decoration(TextDecoration.ITALIC, false));
         return this;
     }
 
     public ItemMaker setLore(List<String> lore) {
-        im.setLore(lore);
+        im.lore(TextUtils.parseList(lore));
         return this;
     }
 
@@ -82,7 +84,7 @@ public class ItemMaker {
             lore = new ArrayList<>();
         }
         lore.add(line);
-        im.setLore(lore);
+        im.lore(TextUtils.parseList(lore));
 
         return this;
     }

@@ -1,10 +1,15 @@
 name: X-Mas
-version: ${project.version}
+version: ${version}
 main: ru.meloncode.xmas.Main
 load: POSTWORLD
-api-version: '1.14'
-softdepend: [Multiverse-Core, PlotMe, PlotSquared, Plotz]
+api-version: '1.21'
+softdepend: [Multiverse-Core, PlotMe, PlotSquared, Plotz, PlaceholderAPI]
 commands:
- xmas:
-  usage: Use /<command> help to see help
+ xmastree:
+  description: Manage the 1MB XMas Tree event
+  usage: /<command> [help|give|gifts|addhand|reload|debug|end]
   permission: xmas.admin
+permissions:
+ xmas.admin:
+  description: Allows all XMas Tree admin commands
+  default: op

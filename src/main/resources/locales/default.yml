@@ -17,7 +17,7 @@
 #_UNUSED is a keyword to disable message.
 
 #For chat
-plugin-name: X-Mas
+plugin-name: XMas Tree
 
 messages:
  plugin-enabled: Merry Christmas And Happy New Year!
@@ -26,31 +26,36 @@ messages:
  tree:
   grow-lvl-ready: Woosh! Press Right Mouse Button to let tree grow!
   grow-lvl-progress: _UNUSED
-  grow-req-list-title: Required
+  grow-req-list-title: Still needed
+  grow-req-list-hint: <gray>Right-click the tree while holding the listed ingredient items to feed them into the tree.</gray>
   grow-not-enough-place: Not enough place to make it grow
   grow-lvl-max: This tree has reached it's maximum level!
   tree-limit: Hey, do not be greedy!
-  destroy-sapling: This miracle won't drop. Are you sure? 
+  destroy-sapling: You can cut down this tree.
   destroy-leaves-santa: Santa Claus sees everything. 
   destroy-leaves-tut: To destroy a tree - cut the log.
-  destroy-warning: Are you sure? Your progress will be lost and no resources back.
-  destroy-tut: To destroy your tree cut it again.
+  destroy-warning: You can cut down this tree.
+  destroy-resource-back: Your used upgrade items will be returned for collection.
+  destroy-tut: Hit it again to confirm.
   destroy-fail-owner: It's not your tree!
-  destroy-complete: You're MONSTER!
+  destroy-complete: Your tree has been packed away for the season.
  gift:
   luck-message: _UNUSED
   unluck-message: Probably Santa has put you in his blacklist. I hope you're lucky next time!
 crystal:
- name: Christmas Crystal
+ name: <green>Christmas Crystal</green>
  lore: 
-  - Concentrated Christmas Spirit
-  - Use it on Sapling to fill it with magic!
+  - <gold>Concentrated Christmas Spirit</gold>
+  - <gray>Use it on a spruce sapling to fill it with magic!</gray>
 command:
  help:
-   - '&2Use &c/xmas &2to show plugin version and status'
-   - '&2Use &c/xmas give &2<Name> to give crystal somebody'
-   - '&2Use &c/xmas gifts &2to spawn some presents under trees!'
-   - '&2Use &c/xmas end &2to set plugin into ending mode'
- player-offline: '&cPlayer not found'
- no-player-name: '&6Missing player name'
- giveaway: '&cHo! &2Ho! &cHo! &3Looks like it\s time to check presents!'
+   - '<green>Use <red>/xmastree</red> to show plugin version and status</green>'
+   - '<green>Use <red>/xmastree give</red> player to give a player a Christmas Crystal</green>'
+   - '<green>Use <red>/xmastree gifts</red> to spawn presents under all trees</green>'
+   - '<green>Use <red>/xmastree addhand</red> to add your held item as a gift</green>'
+   - '<green>Use <red>/xmastree reload</red> to reload the plugin config</green>'
+   - '<green>Use <red>/xmastree debug</red> for paginated status, commands, permissions, placeholders, and toggles</green>'
+   - '<green>Use <red>/xmastree end</red> to end the event</green>'
+ player-offline: '<red>Player not found</red>'
+ no-player-name: '<gold>Missing player name</gold>'
+ giveaway: '<red>Ho!</red> <green>Ho!</green> <red>Ho!</red> <aqua>Looks like its time to check presents!</aqua>'

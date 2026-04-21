@@ -8,7 +8,6 @@ import org.bukkit.block.Block;
 import org.bukkit.block.Skull;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.Nullable;
 import ru.meloncode.xmas.utils.LocationUtils;
 import ru.meloncode.xmas.utils.TextUtils;
 
@@ -35,6 +34,10 @@ class XMas {
 
     public static void addMagicTree(MagicTree tree) {
         trees.put(tree.getTreeUID(), tree);
+        trees_byChunk.computeIfAbsent(LocationUtils.getChunkKey(tree.getLocation()), aLong -> new ArrayList<>());
+        List<MagicTree> chunkTrees = trees_byChunk.get(LocationUtils.getChunkKey(tree.getLocation()));
+        chunkTrees.removeIf(existingTree -> existingTree.getTreeUID().equals(tree.getTreeUID()));
+        chunkTrees.add(tree);
         tree.build();
     }
 
@@ -42,39 +45,60 @@ class XMas {
         return trees.values();
     }
 
-    @Nullable
     public static Collection<MagicTree> getAllTreesInChunk(Chunk chunk) {
         return trees_byChunk.get(LocationUtils.getChunkKey(chunk));
     }
 
     public static void removeTree(MagicTree tree) {
-        tree.unbuild();
+        removeTree(tree, true);
+    }
+
+    public static void removeTree(MagicTree tree, boolean unbuild) {
+        if (unbuild) {
+            tree.unbuild();
+        }
         TreeSerializer.removeTree(tree);
         trees.remove(tree.getTreeUID());
-        trees_byChunk.remove(LocationUtils.getChunkKey(tree.getLocation()));
+        List<MagicTree> chunkTrees = trees_byChunk.get(LocationUtils.getChunkKey(tree.getLocation()));
+        if (chunkTrees != null) {
+            chunkTrees.remove(tree);
+            if (chunkTrees.isEmpty()) {
+                trees_byChunk.remove(LocationUtils.getChunkKey(tree.getLocation()));
+            }
+        }
     }
 
     public static void processPresent(Block block, Player player) {
         if (block.getType() == Material.PLAYER_HEAD) {
             Skull skull = (Skull) block.getState();
+            String headId = getHeadIdentifier(skull);
 
-                if (Main.getHeads().contains(skull.getOwner())) {
-                    Location loc = block.getLocation();
-                    World world = loc.getWorld();
-                    if (world != null) {
-                        if (RANDOM.nextFloat() < Main.LUCK_CHANCE || !Main.LUCK_CHANCE_ENABLED) {
-                            world.dropItemNaturally(loc, new ItemStack(Main.gifts.get(RANDOM.nextInt(Main.gifts.size()))));
-                            Effects.TREE_SWAG.playEffect(loc);
-                            TextUtils.sendMessage(player, LocaleManager.GIFT_LUCK);
-                        } else {
-                            Effects.SMOKE.playEffect(loc);
-                            world.dropItemNaturally(loc, new ItemStack(Material.COAL));
-                            TextUtils.sendMessage(player, LocaleManager.GIFT_FAIL);
-                        }
+            if (headId != null && Main.getHeads().contains(headId)) {
+                Location loc = block.getLocation();
+                World world = loc.getWorld();
+                if (world != null) {
+                    if (RANDOM.nextFloat() < Main.LUCK_CHANCE || !Main.LUCK_CHANCE_ENABLED) {
+                        world.dropItemNaturally(loc, new ItemStack(Main.gifts.get(RANDOM.nextInt(Main.gifts.size()))));
+                        Effects.TREE_SWAG.playEffect(loc);
+                        TextUtils.sendMessage(player, LocaleManager.GIFT_LUCK);
+                    } else {
+                        Effects.SMOKE.playEffect(loc);
+                        world.dropItemNaturally(loc, new ItemStack(Material.COAL));
+                        TextUtils.sendMessage(player, LocaleManager.GIFT_FAIL);
                     }
-                    block.setType(Material.AIR);
                 }
+                block.setType(Material.AIR);
+            }
         }
+    }
+
+    static String getHeadIdentifier(Skull skull) {
+        if (skull.getOwnerProfile() != null
+                && skull.getOwnerProfile().getTextures() != null
+                && skull.getOwnerProfile().getTextures().getSkin() != null) {
+            return skull.getOwnerProfile().getTextures().getSkin().toString();
+        }
+        return skull.getOwner();
     }
 
     public static List<MagicTree> getTreesPlayerOwn(Player player) {

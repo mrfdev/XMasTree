@@ -1,7 +1,7 @@
 package ru.meloncode.xmas;
 
-import com.google.common.collect.Lists;
 import org.bukkit.*;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.event.EventHandler;
@@ -9,8 +9,10 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
@@ -19,6 +21,7 @@ import ru.meloncode.xmas.utils.TextUtils;
 import java.io.File;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Base64;
 import java.util.*;
 
 public class Main extends JavaPlugin implements Listener {
@@ -31,14 +34,20 @@ public class Main extends JavaPlugin implements Listener {
     static boolean resourceBack;
     static int MAX_TREE_COUNT;
     static boolean autoEnd;
+    static boolean particlesEnabled;
+    static float growFirstSoundVolume;
+    static float growRepeatSoundVolume;
     static long endTime;
     static boolean inProgress;
     private static int UPDATE_SPEED;
     private static int PARTICLES_DELAY;
+    private static NamespacedKey crystalKey;
     private static List<String> heads;
     private static Plugin plugin;
+    private static final int MAX_SERIALIZED_GIFT_LENGTH = 65536;
     private FileConfiguration config;
     private String locale;
+    private XMasPlaceholderExpansion placeholderExpansion;
 
     public static Plugin getInstance() {
         return plugin;
@@ -46,6 +55,10 @@ public class Main extends JavaPlugin implements Listener {
 
     public static List<String> getHeads() {
         return heads;
+    }
+
+    public static NamespacedKey getCrystalKey() {
+        return crystalKey;
     }
 
     @Override
@@ -56,6 +69,7 @@ public class Main extends JavaPlugin implements Listener {
     @Override
     public void onEnable() {
         this.saveDefaults();
+        crystalKey = new NamespacedKey(this, "xmas_crystal");
         config = getConfig();
         locale = config.getString("core.locale");
 
@@ -69,8 +83,12 @@ public class Main extends JavaPlugin implements Listener {
             UPDATE_SPEED = 7;
         }
         PARTICLES_DELAY = config.getInt("core.particles-delay");
-        if (PARTICLES_DELAY <= 0)
-            config.set("particles-delay", 35);
+        if (PARTICLES_DELAY <= 0) {
+            config.set("core.particles-delay", 35);
+            PARTICLES_DELAY = 35;
+        }
+        particlesEnabled = config.getBoolean("core.particles-enabled", true);
+        loadSoundConfig();
         
         autoEnd = config.getBoolean("core.holiday-ends.enabled");
         resourceBack = config.getBoolean("core.holiday-ends.resource-back");
@@ -80,7 +98,7 @@ public class Main extends JavaPlugin implements Listener {
             date = sdf.parse(config.getString("core.holiday-ends.date"));
             endTime = date.getTime();
         } catch (ParseException e1) {
-            TextUtils.sendConsoleMessage("Unable to load date");
+            TextUtils.sendConsoleMessage("<red>Unable to load date");
         }
         defineTreeLevels();
         for (World world : getServer().getWorlds()) {
@@ -90,33 +108,20 @@ public class Main extends JavaPlugin implements Listener {
         LocaleManager.loadLocale(locale);
         heads = config.getStringList("xmas.presents");
         if (heads.size() == 0) {
-            getLogger().warning(ChatColor.RED + "Warning! No heads loaded! Presents can't spawn without box!");
+            getLogger().warning("[X-Mas] Warning! No heads loaded! Presents can't spawn without box!");
             return;
         }
         gifts = new ArrayList<>();
-        for (String cItem : config.getStringList("xmas.gifts")) {
-            try {
-
-                if (cItem.contains(":")) {
-                    String[] split = cItem.split(":");
-                    if (split.length == 0) throw new IllegalArgumentException();
-
-                    Material material;
-                    int amount = 1;
-                    material = Material.valueOf(split[0]);
-                    if (split.length > 1) amount = Integer.parseInt(split[1]);
-                    gifts.add(new ItemStack(material, amount));
-                } else {
-                    gifts.add(new ItemStack(Material.valueOf(cItem)));
-                }
-
-            } catch (IllegalArgumentException e) {
-                getLogger().severe(ChatColor.RED + "[X-Mas] Unable to get load gift from  '" + cItem + "'");
-                getLogger().warning(ChatColor.RED + "[X-Mas] For gifts - use format MATERIAL:AMOUNT:DATA. Amount and data are optional");
+        for (String serializedItem : config.getStringList("xmas.gifts")) {
+            ItemStack item = deserializeItem(serializedItem);
+            if (item != null) {
+                gifts.add(item);
+            } else {
+                getLogger().warning("[X-Mas] Failed to load gift item: " + serializedItem);
             }
         }
         if (gifts.size() == 0) {
-            getLogger().warning(ChatColor.RED + "[X-Mas] Warning! No gifts loaded! No X-Mas without gifts!");
+            getLogger().warning("[X-Mas] Warning! No gifts loaded! No X-Mas without gifts!");
             return;
         }
 
@@ -124,11 +129,16 @@ public class Main extends JavaPlugin implements Listener {
         LUCK_CHANCE = (float) config.getInt("xmas.luck.chance") / 100;
         new Events().registerListener();
         new MagicTask(this).runTaskTimer(this, 5, UPDATE_SPEED);
-        new PlayParticlesTask(this).runTaskTimerAsynchronously(this, 5, PARTICLES_DELAY);
+        new PlayParticlesTask(this).runTaskTimer(this, 5, PARTICLES_DELAY);
         XMas.XMAS_CRYSTAL = new ItemMaker(Material.EMERALD, LocaleManager.CRYSTAL_NAME, LocaleManager.CRYSTAL_LORE).make();
+        ItemMeta crystalMeta = XMas.XMAS_CRYSTAL.getItemMeta();
+        if (crystalMeta != null) {
+            crystalMeta.getPersistentDataContainer().set(crystalKey, PersistentDataType.BYTE, (byte) 1);
+            XMas.XMAS_CRYSTAL.setItemMeta(crystalMeta);
+        }
 
         ShapedRecipe grinderRecipe;
-        grinderRecipe = new ShapedRecipe(new NamespacedKey(this, "xmas"), XMas.XMAS_CRYSTAL).shape("#d#", "ded", "#d#").setIngredient('d', Material.DIAMOND).setIngredient('e', Material.EMERALD);
+        grinderRecipe = new ShapedRecipe(new NamespacedKey(this, "xmas"), XMas.XMAS_CRYSTAL).shape(" d ", "ded", " d ").setIngredient('d', Material.DIAMOND).setIngredient('e', Material.EMERALD);
         Iterator<Recipe> recipes = getServer().recipeIterator();
         boolean registered = false;
         while (recipes.hasNext()) {
@@ -145,6 +155,7 @@ public class Main extends JavaPlugin implements Listener {
         } catch (Exception ignored) {
         }
         XMasCommand.register(this);
+        registerPlaceholderApi();
         TextUtils.sendConsoleMessage(LocaleManager.PLUGIN_ENABLED);
     }
 
@@ -160,17 +171,169 @@ public class Main extends JavaPlugin implements Listener {
         }
     }
 
+    public void reloadPluginConfig() {
+        reloadConfig();
+        config = getConfig();
+        locale = config.getString("core.locale");
+
+        inProgress = config.getBoolean("core.plugin-enabled", true);
+        UPDATE_SPEED = config.getInt("core.update-speed");
+        if (UPDATE_SPEED <= 0) {
+            UPDATE_SPEED = 7;
+        }
+        PARTICLES_DELAY = config.getInt("core.particles-delay");
+        if (PARTICLES_DELAY <= 0) {
+            PARTICLES_DELAY = 35;
+        }
+        particlesEnabled = config.getBoolean("core.particles-enabled", true);
+        loadSoundConfig();
+
+        autoEnd = config.getBoolean("core.holiday-ends.enabled");
+        resourceBack = config.getBoolean("core.holiday-ends.resource-back");
+        MAX_TREE_COUNT = config.getInt("core.tree-limit");
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy kk-mm-ss");
+            endTime = sdf.parse(config.getString("core.holiday-ends.date")).getTime();
+        } catch (ParseException e) {
+            TextUtils.sendConsoleMessage("<red>Invalid holiday end date in config.yml");
+        }
+
+        defineTreeLevels();
+        LocaleManager.loadLocale(locale);
+        heads = config.getStringList("xmas.presents");
+
+        gifts = new ArrayList<>();
+        for (String serializedItem : config.getStringList("xmas.gifts")) {
+            ItemStack item = deserializeItem(serializedItem);
+            if (item != null) {
+                gifts.add(item);
+            } else {
+                getLogger().warning("[X-Mas] Failed to deserialize gift item: " + serializedItem);
+            }
+        }
+
+        LUCK_CHANCE_ENABLED = config.getBoolean("xmas.luck.enabled");
+        LUCK_CHANCE = (float) config.getInt("xmas.luck.chance") / 100;
+        XMasCommand.refreshCommandConfiguration(this);
+        TextUtils.sendConsoleMessage("<green>Configuration reloaded!");
+    }
+
+    private void loadSoundConfig() {
+        growFirstSoundVolume = clampVolume(config.getDouble("core.sounds.grow.first-volume", 0.5));
+        growRepeatSoundVolume = clampVolume(config.getDouble("core.sounds.grow.repeat-volume", 0.2));
+    }
+
+    private float clampVolume(double volume) {
+        if (Double.isNaN(volume)) {
+            return 0;
+        }
+        return (float) Math.max(0, Math.min(1, volume));
+    }
+
+    public void addGiftItem(ItemStack item) {
+        ItemStack gift = item.clone();
+        String serializedItem = serializeItem(gift);
+        if (serializedItem == null) {
+            getLogger().warning("Failed to serialize item for saving to the gift list. Item: " + gift);
+            return;
+        }
+
+        List<String> giftList = config.getStringList("xmas.gifts");
+        giftList.add(serializedItem);
+        config.set("xmas.gifts", giftList);
+        saveConfig();
+        gifts.add(gift);
+    }
+
+    private String serializeItem(ItemStack item) {
+        try {
+            byte[] serializedBytes = item.serializeAsBytes();
+            return Base64.getEncoder().encodeToString(serializedBytes);
+        } catch (Exception e) {
+            getLogger().severe("Failed to serialize item: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public static ItemStack deserializeItem(String serializedItem) {
+        if (serializedItem == null) {
+            return null;
+        }
+        String trimmed = serializedItem.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+
+        ItemStack materialItem = deserializeMaterialItem(trimmed);
+        if (materialItem != null) {
+            return materialItem;
+        }
+
+        if (trimmed.length() > MAX_SERIALIZED_GIFT_LENGTH) {
+            Bukkit.getLogger().severe("[X-Mas] Gift item is too large to deserialize safely: " + trimmed.length() + " characters");
+            return null;
+        }
+
+        try {
+            byte[] serializedBytes = Base64.getDecoder().decode(trimmed);
+            return ItemStack.deserializeBytes(serializedBytes);
+        } catch (IllegalArgumentException e) {
+            Bukkit.getLogger().severe("[X-Mas] Invalid material name or Base64 gift item: " + trimmed);
+            return null;
+        } catch (Exception e) {
+            Bukkit.getLogger().severe("[X-Mas] Failed to deserialize gift item: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private static ItemStack deserializeMaterialItem(String serializedItem) {
+        String materialName = serializedItem;
+        int amount = 1;
+        if (serializedItem.contains(":")) {
+            String[] split = serializedItem.split(":", 2);
+            materialName = split[0].trim();
+            try {
+                amount = Integer.parseInt(split[1].trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+
+        Material material = Material.matchMaterial(materialName);
+        if (material == null || material.isLegacy() || !material.isItem()) {
+            return null;
+        }
+        int maxStackSize = Math.max(1, material.getMaxStackSize());
+        amount = Math.max(1, Math.min(amount, maxStackSize));
+        return new ItemStack(material, amount);
+    }
+
 
     @Override
     public void onDisable() {
+        if (placeholderExpansion != null && placeholderExpansion.isRegistered()) {
+            placeholderExpansion.unregister();
+        }
         if (XMas.getAllTrees().size() > 0)
             for (MagicTree tree : XMas.getAllTrees()) {
                 tree.unbuild();
             }
     }
 
+    private void registerPlaceholderApi() {
+        if (!getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            return;
+        }
+        placeholderExpansion = new XMasPlaceholderExpansion(this);
+        if (placeholderExpansion.register()) {
+            getLogger().info("Registered PlaceholderAPI expansion: " + XMasPlaceholders.IDENTIFIER);
+        } else {
+            getLogger().warning("PlaceholderAPI is present, but placeholder registration failed.");
+        }
+    }
+
     public void end() {
-        Bukkit.broadcastMessage(ChatColor.GREEN + LocaleManager.HAPPY_NEW_YEAR);
+        Bukkit.broadcast(TextUtils.parse("<green>" + LocaleManager.HAPPY_NEW_YEAR));
         inProgress = false;
         config.set("core.plugin-enabled", false);
         saveConfig();
@@ -179,7 +342,7 @@ public class Main extends JavaPlugin implements Listener {
     private void saveDefaults() {
         this.saveDefaultConfig();
         plugin.saveResource("locales/default.yml", true);
-        ArrayList<String> defaults = Lists.newArrayList("locales/en.yml", "locales/ru.yml", "locales/ru_santa.yml", "trees.yml");
+        List<String> defaults = Arrays.asList("locales/en.yml", "locales/ru.yml", "locales/ru_santa.yml", "trees.yml");
         for (String path : defaults)
             if (!new File(getDataFolder(), '/' + path).exists()) plugin.saveResource(path, false);
     }
@@ -196,7 +359,11 @@ public class Main extends JavaPlugin implements Listener {
         Map<Material, Integer> smallLevelUp = TreeSerializer.convertRequirementsMap(lvlups.getConfigurationSection("small_tree.lvlup").getValues(false));
         Map<Material, Integer> treeLevelUp = TreeSerializer.convertRequirementsMap(lvlups.getConfigurationSection("tree.lvlup").getValues(false));
 
-        TreeLevel.MAGIC_TREE = new TreeLevel("magic_tree", Effects.TREE_WHITE_AMBIENT, Effects.TREE_SWAG, null, null, magic_delay, Collections.emptyMap(), new StructureTemplate(new HashMap<Vector, Material>() {
+        TreeLevel.MAGIC_TREE = new TreeLevel("magic_tree",
+                getParticleEffect("magic_tree", "ambient", Effects.TREE_WHITE_AMBIENT),
+                getParticleEffect("magic_tree", "swag", Effects.TREE_SWAG),
+                getParticleEffect("magic_tree", "body", null),
+                null, magic_delay, Collections.emptyMap(), new StructureTemplate(new HashMap<Vector, Material>() {
             private static final long serialVersionUID = 1L;
 
             {
@@ -232,7 +399,11 @@ public class Main extends JavaPlugin implements Listener {
             }
         }));
 
-        TreeLevel.TREE = new TreeLevel("tree", Effects.AMBIENT_SNOW, Effects.TREE_GOLD_SWAG, null, TreeLevel.MAGIC_TREE, tree_delay, treeLevelUp, new StructureTemplate(new HashMap<Vector, Material>() {
+        TreeLevel.TREE = new TreeLevel("tree",
+                getParticleEffect("tree", "ambient", Effects.AMBIENT_SNOW),
+                getParticleEffect("tree", "swag", Effects.TREE_GOLD_SWAG),
+                getParticleEffect("tree", "body", null),
+                TreeLevel.MAGIC_TREE, tree_delay, treeLevelUp, new StructureTemplate(new HashMap<Vector, Material>() {
             private static final long serialVersionUID = 1L;
 
             {
@@ -265,7 +436,11 @@ public class Main extends JavaPlugin implements Listener {
             }
         }));
 
-        TreeLevel.SMALL_TREE = new TreeLevel("small_tree", Effects.AMBIENT_PORTAL, Effects.TREE_RED_SWAG, null, TreeLevel.TREE, small_delay, smallLevelUp, new StructureTemplate(new HashMap<Vector, Material>() {
+        TreeLevel.SMALL_TREE = new TreeLevel("small_tree",
+                getParticleEffect("small_tree", "ambient", Effects.AMBIENT_PORTAL),
+                getParticleEffect("small_tree", "swag", Effects.TREE_RED_SWAG),
+                getParticleEffect("small_tree", "body", null),
+                TreeLevel.TREE, small_delay, smallLevelUp, new StructureTemplate(new HashMap<Vector, Material>() {
             private static final long serialVersionUID = 1L;
 
             {
@@ -292,7 +467,11 @@ public class Main extends JavaPlugin implements Listener {
             }
         }));
 
-        TreeLevel.SAPLING = new TreeLevel("sapling", Effects.AMBIENT_SAPLING, null, null, TreeLevel.SMALL_TREE, sapling_delay, saplingLevelUp, new StructureTemplate(new HashMap<Vector, Material>() {
+        TreeLevel.SAPLING = new TreeLevel("sapling",
+                getParticleEffect("sapling", "ambient", Effects.AMBIENT_SAPLING),
+                getParticleEffect("sapling", "swag", null),
+                getParticleEffect("sapling", "body", null),
+                TreeLevel.SMALL_TREE, sapling_delay, saplingLevelUp, new StructureTemplate(new HashMap<Vector, Material>() {
             private static final long serialVersionUID = 1L;
 
             {
@@ -300,5 +479,43 @@ public class Main extends JavaPlugin implements Listener {
                 put(new Vector(0, 0, 0), Material.SPRUCE_SAPLING);
             }
         }));
+    }
+
+    private ParticleContainer getParticleEffect(String level, String effect, ParticleContainer fallback) {
+        String path = "xmas.tree-lvl." + level + ".particles." + effect;
+        ConfigurationSection section = config.getConfigurationSection(path);
+        if (section == null) {
+            return fallback;
+        }
+        if (!section.getBoolean("enabled", fallback != null)) {
+            return null;
+        }
+
+        String configuredParticle = section.getString("particle", fallback != null ? fallback.getType().name() : null);
+        if (configuredParticle == null || configuredParticle.trim().isEmpty()) {
+            return fallback;
+        }
+
+        Particle particle;
+        try {
+            particle = Particle.valueOf(configuredParticle.trim().toUpperCase(Locale.ENGLISH));
+        } catch (IllegalArgumentException e) {
+            getLogger().warning("[X-Mas] Unknown particle '" + configuredParticle + "' at " + path + ". Using fallback.");
+            return fallback;
+        }
+
+        if (particle.getDataType() != Void.class && particle != Particle.DUST) {
+            getLogger().warning("[X-Mas] Particle '" + particle.name() + "' needs extra data and is not supported in config yet. Using fallback.");
+            return fallback;
+        }
+
+        return new ParticleContainer(
+                particle,
+                (float) section.getDouble("offset-x", fallback != null ? fallback.getOffsetX() : 0),
+                (float) section.getDouble("offset-y", fallback != null ? fallback.getOffsetY() : 0),
+                (float) section.getDouble("offset-z", fallback != null ? fallback.getOffsetZ() : 0),
+                (float) section.getDouble("speed", fallback != null ? fallback.getSpeed() : 0),
+                Math.max(0, section.getInt("count", fallback != null ? fallback.getCount() : 0))
+        );
     }
 }

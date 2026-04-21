@@ -1,6 +1,5 @@
 package ru.meloncode.xmas;
 
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -13,11 +12,15 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
 class TreeSerializer {
     private static final File treesFile = new File(Main.getInstance().getDataFolder() + "/trees.yml");
     private static final FileConfiguration trees = ConfigUtils.loadConfig(treesFile);
+    private static final Set<String> loggedWorldAliasMappings = ConcurrentHashMap.newKeySet();
 
     public static void loadTrees(JavaPlugin plugin, World world) {
         try {
@@ -31,7 +34,8 @@ class TreeSerializer {
             if (trees.getConfigurationSection("trees") != null && trees.getConfigurationSection("trees").getKeys(false).size() > 0) {
 
                 for (String cKey : trees.getConfigurationSection("trees").getKeys(false)) {
-                    if (world.getName().equals(trees.getString("trees." + cKey + ".loc.world"))) {
+                    String savedWorldName = trees.getString("trees." + cKey + ".loc.world");
+                    if (matchesSavedWorld(world, savedWorldName)) {
                         try {
                             treeUID = UUID.fromString(cKey);
                             owner = UUID.fromString(trees.getString("trees." + cKey + ".owner"));
@@ -51,16 +55,14 @@ class TreeSerializer {
 
                             XMas.addMagicTree(new MagicTree(owner, treeUID, level, loc, requirements, presentCounter, scheduledPresents));
                         } catch (Exception e) {
-                            plugin.getLogger().severe(String.format("Error while loading tree `%s`", cKey));
-                            e.printStackTrace();
-                            System.out.println("================================================");
+                            plugin.getLogger().log(Level.SEVERE, String.format("Error while loading tree `%s`", cKey), e);
                         }
                     }
                 }
             }
         } catch (Exception e) {
-            TextUtils.sendConsoleMessage(ChatColor.DARK_RED + "ERROR WHILE LOADING TREES");
-            e.printStackTrace();
+            TextUtils.sendConsoleMessage("<dark_red>ERROR WHILE LOADING TREES");
+            plugin.getLogger().log(Level.SEVERE, "Unable to load X-Mas trees", e);
         }
 
     }
@@ -76,13 +78,13 @@ class TreeSerializer {
         trees.set("trees." + cKey + ".loc.z", tree.getLocation().getZ());
         if (tree.getLevelupRequirements() != null && tree.getLevelupRequirements().size() > 0)
             trees.createSection("trees." + cKey + ".levelup", tree.getLevelupRequirements());
+        trees.set("trees." + cKey + ".present_counter", tree.getPresentCounter());
+        trees.set("trees." + cKey + ".scheduled_presents", tree.getScheduledPresents());
         try {
             trees.save(treesFile);
         } catch (IOException e) {
-            e.printStackTrace();
+            Main.getInstance().getLogger().log(Level.SEVERE, "Unable to save X-Mas tree data", e);
         }
-        trees.set("trees." + cKey + ".present_counter", tree.getPresentCounter());
-        trees.set("trees." + cKey + ".scheduled_presents", tree.getScheduledPresents());
     }
 
     public static void removeTree(MagicTree tree) {
@@ -90,7 +92,7 @@ class TreeSerializer {
         try {
             trees.save(treesFile);
         } catch (IOException e) {
-            e.printStackTrace();
+            Main.getInstance().getLogger().log(Level.SEVERE, "Unable to remove X-Mas tree data", e);
         }
     }
 
@@ -101,14 +103,52 @@ class TreeSerializer {
         if (map != null)
             for (String sMaterial : map.keySet()) {
                 try {
-                    cMaterial = Material.valueOf(sMaterial);
-                    value = (int) map.get(sMaterial);
+                    cMaterial = Material.matchMaterial(sMaterial);
+                    if (cMaterial == null || cMaterial.isLegacy()) {
+                        TextUtils.sendConsoleMessage("<red>Can't find modern material '" + sMaterial + "' for tree level.");
+                        continue;
+                    }
+                    Object rawValue = map.get(sMaterial);
+                    if (!(rawValue instanceof Number)) {
+                        TextUtils.sendConsoleMessage("<red>Tree level material '" + sMaterial + "' must use a numeric amount.");
+                        continue;
+                    }
+                    value = ((Number) rawValue).intValue();
                     levelupRequirements.put(cMaterial, value);
                 } catch (IllegalArgumentException e) {
-                    TextUtils.sendConsoleMessage("Can't find material '" + sMaterial + "' for tree level.");
-                    return null;
+                    TextUtils.sendConsoleMessage("<red>Can't load material '" + sMaterial + "' for tree level.");
                 }
             }
         return levelupRequirements;
+    }
+
+    private static boolean matchesSavedWorld(World world, String savedWorldName) {
+        if (world == null || savedWorldName == null || savedWorldName.isBlank()) {
+            return false;
+        }
+        if (world.getName().equalsIgnoreCase(savedWorldName)) {
+            return true;
+        }
+
+        String configuredWorldName = getWorldAlias(savedWorldName);
+        if (configuredWorldName != null && world.getName().equalsIgnoreCase(configuredWorldName)) {
+            logWorldAliasMapping(savedWorldName, world.getName());
+            return true;
+        }
+        return false;
+    }
+
+    private static String getWorldAlias(String savedWorldName) {
+        if (!(Main.getInstance() instanceof Main plugin)) {
+            return null;
+        }
+        return plugin.getConfig().getString("migration.world-aliases." + savedWorldName);
+    }
+
+    private static void logWorldAliasMapping(String savedWorldName, String worldName) {
+        String mapping = savedWorldName + "->" + worldName;
+        if (loggedWorldAliasMappings.add(mapping)) {
+            Main.getInstance().getLogger().info("Loading legacy X-Mas trees from saved world '" + savedWorldName + "' into '" + worldName + "' via migration.world-aliases.");
+        }
     }
 }
