@@ -8,8 +8,48 @@ commands:
  xmastree:
   description: Manage the 1MB XMas Tree event
   usage: /<command> [help|give|gifts|addhand|reload|debug|end]
-  permission: xmas.admin
 permissions:
- xmas.admin:
-  description: Allows all XMas Tree admin commands
+ onembxmastree.admin:
+  description: Allows all XMas Tree commands and overrides
+  default: op
+  children:
+   onembxmastree.command.status: true
+   onembxmastree.command.help: true
+   onembxmastree.command.give: true
+   onembxmastree.command.gifts: true
+   onembxmastree.command.addhand: true
+   onembxmastree.command.reload: true
+   onembxmastree.command.debug: true
+   onembxmastree.command.debug.toggle: true
+   onembxmastree.command.end: true
+   onembxmastree.tree.override: true
+ onembxmastree.command.status:
+  description: Allows viewing /xmastree status
+  default: true
+ onembxmastree.command.help:
+  description: Allows viewing /xmastree help
+  default: true
+ onembxmastree.command.give:
+  description: Allows /xmastree give
+  default: op
+ onembxmastree.command.gifts:
+  description: Allows /xmastree gifts
+  default: op
+ onembxmastree.command.addhand:
+  description: Allows /xmastree addhand
+  default: op
+ onembxmastree.command.reload:
+  description: Allows /xmastree reload
+  default: op
+ onembxmastree.command.debug:
+  description: Allows /xmastree debug
+  default: op
+ onembxmastree.command.debug.toggle:
+  description: Allows /xmastree debug toggle
+  default: op
+ onembxmastree.command.end:
+  description: Allows /xmastree end
+  default: op
+ onembxmastree.tree.override:
+  description: Allows managing other players' trees
   default: op

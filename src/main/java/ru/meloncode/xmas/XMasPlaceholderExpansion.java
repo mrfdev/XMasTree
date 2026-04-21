@@ -19,7 +19,7 @@ public class XMasPlaceholderExpansion extends PlaceholderExpansion {
 
     @Override
     public String getAuthor() {
-        return "1MB / mrfdev";
+        return "mrfloris";
     }
 
     @Override

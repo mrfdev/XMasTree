@@ -3,10 +3,10 @@ plugins {
 }
 
 group = 'com.onemb.xmas'
-version = '2.0.1-010'
+version = '2.0.1-011'
 
 def legacyArchiveName = '1MB-XMas-2026-v2.0.0-004-v21-1.21.8.jar'
-def paper2612ArchiveName = '1MB-XMas-2026-v2.0.1-010-v25-26.1.2.jar'
+def paper2612ArchiveName = '1MB-XMas-2026-v2.0.1-011-v25-26.1.2.jar'
 
 def serverOne = layout.projectDirectory.dir('servers/Server-One-Paper-1.21.11')
 def serverTwo = layout.projectDirectory.dir('servers/Server-Two-Paper-26.1.2')

@@ -217,7 +217,7 @@ class Events implements Listener {
             MagicTree tree = MagicTree.getTreeByBlock(block);
             switch (block.getType()) {
                 case SPRUCE_LOG:
-                    if (player.getUniqueId().equals(tree.getOwner()) || player.hasPermission("xmas.admin")) {
+                    if (player.getUniqueId().equals(tree.getOwner()) || XMasCommand.canOverrideTree(player)) {
                         if (Main.inProgress)
                             if (destroyers.containsKey(player.getUniqueId()) && System.currentTimeMillis() - destroyers.get(player.getUniqueId()) <= 10000) {
                                 if (Main.resourceBack) {
@@ -247,14 +247,14 @@ class Events implements Listener {
                 case GLOWSTONE:
                     if (Main.inProgress)
                         TextUtils.sendMessage(player, "<dark_green>" + LocaleManager.DESTROY_LEAVES_SANTA);
-                    if (player.getUniqueId().equals(tree.getOwner()) || player.hasPermission("xmas.admin")) {
+                    if (player.getUniqueId().equals(tree.getOwner()) || XMasCommand.canOverrideTree(player)) {
                         TextUtils.sendMessage(player, "<red>" + LocaleManager.DESTROY_LEAVES_TUT);
                     } else {
                         TextUtils.sendMessage(player, LocaleManager.DESTROY_FAIL_OWNER);
                     }
                     break;
                 case SPRUCE_SAPLING:
-                    if (player.getUniqueId().equals(tree.getOwner()) || player.hasPermission("xmas.admin")) {
+                    if (player.getUniqueId().equals(tree.getOwner()) || XMasCommand.canOverrideTree(player)) {
                         if (Main.inProgress) {
                             if (destroyers.containsKey(player.getUniqueId()) && System.currentTimeMillis() - destroyers.get(player.getUniqueId()) <= 10000) {
                                 if (Main.resourceBack) {

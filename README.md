@@ -13,7 +13,7 @@ The Gradle build creates the legacy reference jar and the current Paper 26.1.2 t
 | Jar | Purpose |
 | --- | --- |
 | `1MB-XMas-2026-v2.0.0-004-v21-1.21.8.jar` | Legacy reference jar copied from the deployed 2025 server jar. |
-| `1MB-XMas-2026-v2.0.1-010-v25-26.1.2.jar` | Modern Paper 26.1.2 build, Java 25 bytecode. |
+| `1MB-XMas-2026-v2.0.1-011-v25-26.1.2.jar` | Modern Paper 26.1.2 build, Java 25 bytecode. |
 
 The checked-in source targets Paper 26.1.2. The legacy jar is preserved so the deployed working 2025 behavior can be compared or rolled back during testing.
 
@@ -44,7 +44,7 @@ The checked-in source targets Paper 26.1.2. The legacy jar is preserved so the d
 
 For the 2026 target, use the modern Paper 26.1.2 jar:
 
-- Paper 26.1.2: `1MB-XMas-2026-v2.0.1-010-v25-26.1.2.jar`
+- Paper 26.1.2: `1MB-XMas-2026-v2.0.1-011-v25-26.1.2.jar`
 
 ## Building
 
@@ -52,9 +52,9 @@ Requirements:
 
 - JDK 25
 - Gradle
-- The local Paper server folder in `servers/Server-Two-Paper-26.1.2`
-- The local PlaceholderAPI jar in `servers/Server-Two-Paper-26.1.2/plugins`
-- The deployed legacy jar in `servers/Server-One-Paper-1.21.11/plugins` if you want `legacyJar`
+- The current local dev/test setup in this repo uses `servers/Server-Two-Paper-26.1.2` for Paper API jars and local smoke testing
+- The current local dev/test setup in this repo uses `servers/Server-Two-Paper-26.1.2/plugins/PlaceholderAPI-2.12.3-DEV-265.jar` for the optional PlaceholderAPI compile-time classpath
+- The deployed legacy jar in `servers/Server-One-Paper-1.21.11/plugins` is only needed if you want the `legacyJar` copy task
 
 Build the current Paper 26.1.2 jar and the legacy reference jar:
 
@@ -80,7 +80,9 @@ Copy the deployed legacy jar into the requested legacy filename:
 gradle legacyJar
 ```
 
-The build compiles against the Paper 26.1.2 API jars found in `servers/Server-Two-Paper-26.1.2`. If that folder is missing or has not been started far enough for Paper to download its libraries, Gradle will not have the Paper API classpath it needs.
+End users do not need the `servers/` folder. The build output jars are written to `build/libs/`, and those are the files you install on a Paper server.
+
+In this workspace, the current Gradle setup compiles against the Paper 26.1.2 API jars found in `servers/Server-Two-Paper-26.1.2`. If that folder is missing or has not been started far enough for Paper to download its libraries, Gradle will not have the local Paper API classpath it currently expects.
 
 ## Commands
 
@@ -104,7 +106,17 @@ If `core.commands.legacy-command-enabled` is `true`, the legacy `/xmas` alias is
 
 | Permission | Default | Description |
 | --- | --- | --- |
-| `xmas.admin` | `op` | Allows use of the `/xmastree` command and all XMas Tree admin subcommands. |
+| `onembxmastree.admin` | `op` | Umbrella permission for all XMas Tree commands and override actions. |
+| `onembxmastree.command.status` | `true` | Allows viewing `/xmastree` status output. |
+| `onembxmastree.command.help` | `true` | Allows viewing `/xmastree help`. |
+| `onembxmastree.command.give` | `op` | Allows `/xmastree give <player>`. |
+| `onembxmastree.command.gifts` | `op` | Allows `/xmastree gifts`. |
+| `onembxmastree.command.addhand` | `op` | Allows `/xmastree addhand`. |
+| `onembxmastree.command.reload` | `op` | Allows `/xmastree reload`. |
+| `onembxmastree.command.debug` | `op` | Allows `/xmastree debug [page]`. |
+| `onembxmastree.command.debug.toggle` | `op` | Allows `/xmastree debug toggle <key> true\|false`. |
+| `onembxmastree.command.end` | `op` | Allows `/xmastree end`. |
+| `onembxmastree.tree.override` | `op` | Allows managing other players' trees. |
 
 ## Player flow
 
@@ -199,7 +211,7 @@ The dotted key after `onembxmastree_` is supported to keep the placeholders read
 | `%onembxmastree_trees.total%` | `14` | Total loaded X-Mas trees. |
 | `%onembxmastree_trees.owners%` | `6` | Number of unique loaded tree owners. |
 | `%onembxmastree_player.trees%` | `2` | Number of loaded trees owned by the placeholder player. |
-| `%onembxmastree_version%` | `2.0.1-010` | Loaded plugin version. |
+| `%onembxmastree_version%` | `2.0.1-011` | Loaded plugin version. |
 
 CMI hologram example:
 
@@ -229,7 +241,7 @@ ajLeaderboards placeholder examples:
 
 ## Security notes
 
-- Admin commands are gated by `xmas.admin`.
+- Admin and staff access is gated by `onembxmastree.*` permissions.
 - Present texture URLs are restricted to `textures.minecraft.net`.
 - Gift item Base64 entries are capped before deserialization.
 - Config material names are resolved with modern `Material.matchMaterial` and invalid or legacy values are skipped.
@@ -247,7 +259,7 @@ Please report bugs, compatibility problems, and upgrade questions in the GitHub 
 - **Ghost_chu** - NMS fixes - [Ghost-chu](https://github.com/Ghost-chu)
 - **LoneDev6** - Optimization patches - [LoneDev6](https://github.com/LoneDev6)
 - **montlikadani** - Hungarian translation - [montlikadani](https://github.com/montlikadani)
-- **1MB / mrfdev** - 2026 Paper modernization, Java 25 builds, and XMasTree maintenance
+- **mrfloris** - 2026 Paper modernization, Java 25 builds, and XMasTree maintenance - [mrfloris](https://github.com/mrfloris)
 
 Original SpigotMC listing:
 

@@ -20,6 +20,17 @@ import java.util.*;
 public class XMasCommand implements CommandExecutor, TabCompleter {
     public static final String PRIMARY_COMMAND = "xmastree";
     public static final String LEGACY_COMMAND = "xmas";
+    public static final String PERMISSION_ADMIN = "onembxmastree.admin";
+    public static final String PERMISSION_STATUS = "onembxmastree.command.status";
+    public static final String PERMISSION_HELP = "onembxmastree.command.help";
+    public static final String PERMISSION_GIVE = "onembxmastree.command.give";
+    public static final String PERMISSION_GIFTS = "onembxmastree.command.gifts";
+    public static final String PERMISSION_ADDHAND = "onembxmastree.command.addhand";
+    public static final String PERMISSION_RELOAD = "onembxmastree.command.reload";
+    public static final String PERMISSION_DEBUG = "onembxmastree.command.debug";
+    public static final String PERMISSION_DEBUG_TOGGLE = "onembxmastree.command.debug.toggle";
+    public static final String PERMISSION_END = "onembxmastree.command.end";
+    public static final String PERMISSION_TREE_OVERRIDE = "onembxmastree.tree.override";
     private static final List<String> COMMANDS = Arrays.asList("help", "give", "end", "gifts", "reload", "addhand", "debug");
     private static final Set<String> DEBUG_TOGGLE_KEYS = new LinkedHashSet<>(Arrays.asList(
             "core.commands.legacy-command-enabled",
@@ -29,6 +40,7 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
             "core.particles-enabled",
             "xmas.luck.enabled"
     ));
+    private static final Map<String, String> PERMISSIONS = createPermissionDescriptions();
     private static final int DEBUG_PAGE_SIZE = 8;
     private static XMasCommand registeredExecutor;
     private static PluginCommand legacyAliasCommand;
@@ -65,12 +77,20 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
             String action = args[0].toLowerCase(Locale.ENGLISH);
             switch (action) {
                 case "help": {
+                    if (!hasPermission(sender, PERMISSION_HELP)) {
+                        sendNoPermission(sender);
+                        break;
+                    }
                     for (String line : getHelpLines()) {
                         TextUtils.sendRawMessage(sender, line);
                     }
                     break;
                 }
                 case "give": {
+                    if (!hasPermission(sender, PERMISSION_GIVE)) {
+                        sendNoPermission(sender);
+                        break;
+                    }
                     if (args.length > 1) {
                         String name = args[1];
                         Player player = Bukkit.getPlayer(name);
@@ -85,10 +105,18 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
                     break;
                 }
                 case "end": {
+                    if (!hasPermission(sender, PERMISSION_END)) {
+                        sendNoPermission(sender);
+                        break;
+                    }
                     plugin.end();
                     break;
                 }
                 case "gifts": {
+                    if (!hasPermission(sender, PERMISSION_GIFTS)) {
+                        sendNoPermission(sender);
+                        break;
+                    }
                     Random random = new Random();
                     for (MagicTree magicTree : XMas.getAllTrees()) {
                         for (int i = 0; i < 3 + random.nextInt(4); i++) {
@@ -99,8 +127,8 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
                     break;
                 }
                 case "reload": {
-                    if (!sender.hasPermission("xmas.admin")) {
-                        TextUtils.sendRawMessage(sender, "<red>You do not have permission to use this command.");
+                    if (!hasPermission(sender, PERMISSION_RELOAD)) {
+                        sendNoPermission(sender);
                         break;
                     }
                     plugin.reloadPluginConfig();
@@ -112,8 +140,8 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
                         TextUtils.sendRawMessage(sender, "<red>Only players can use this command.");
                         break;
                     }
-                    if (!sender.hasPermission("xmas.admin")) {
-                        TextUtils.sendRawMessage(sender, "<red>You do not have permission to use this command.");
+                    if (!hasPermission(sender, PERMISSION_ADDHAND)) {
+                        sendNoPermission(sender);
                         break;
                     }
                     ItemStack item = player.getInventory().getItemInMainHand();
@@ -134,7 +162,11 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
                     return false;
             }
         } else {
-            sendStatus(sender);
+            if (!hasPermission(sender, PERMISSION_STATUS)) {
+                sendNoPermission(sender);
+            } else {
+                sendStatus(sender);
+            }
         }
         return true;
     }
@@ -145,7 +177,7 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             String typed = args[0].toLowerCase(Locale.ENGLISH);
             for (String subCommand : COMMANDS) {
-                if (subCommand.startsWith(typed)) {
+                if (subCommand.startsWith(typed) && canUseSubCommand(sender, subCommand)) {
                     suggestions.add(subCommand);
                 }
             }
@@ -199,13 +231,17 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleDebug(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("xmas.admin")) {
-            TextUtils.sendRawMessage(sender, "<red>You do not have permission to use this command.");
+        if (args.length >= 2 && args[1].equalsIgnoreCase("toggle")) {
+            if (!hasPermission(sender, PERMISSION_DEBUG_TOGGLE)) {
+                sendNoPermission(sender);
+                return;
+            }
+            handleDebugToggle(sender, args);
             return;
         }
 
-        if (args.length >= 2 && args[1].equalsIgnoreCase("toggle")) {
-            handleDebugToggle(sender, args);
+        if (!hasPermission(sender, PERMISSION_DEBUG)) {
+            sendNoPermission(sender);
             return;
         }
 
@@ -263,7 +299,9 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
         }
         lines.add("");
         lines.add("<gold>Permissions");
-        lines.add("<gray>xmas.admin - allows all " + TextUtils.DISPLAY_NAME + " admin commands");
+        for (Map.Entry<String, String> permission : PERMISSIONS.entrySet()) {
+            lines.add("<gray>" + permission.getKey() + " - " + permission.getValue());
+        }
         lines.add("");
         lines.add("<gold>Placeholders");
         lines.add("<gray>Requires PlaceholderAPI. Use '_' after prefix, then dotted keys.");
@@ -312,6 +350,10 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
         return plugin.getConfig().getBoolean("core.commands.legacy-command-enabled", true);
     }
 
+    public static boolean canOverrideTree(CommandSender sender) {
+        return hasPermission(sender, PERMISSION_TREE_OVERRIDE);
+    }
+
     private static void syncLegacyAlias(Main plugin, XMasCommand executor) {
         CommandMap commandMap = getCommandMap();
         if (commandMap == null) {
@@ -346,7 +388,7 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
         }
         aliasCommand.setDescription("Legacy alias for /" + PRIMARY_COMMAND);
         aliasCommand.setUsage("/" + LEGACY_COMMAND + " [help|give|gifts|addhand|reload|debug|end]");
-        aliasCommand.setPermission("xmas.admin");
+        aliasCommand.setPermission(null);
         aliasCommand.setExecutor(executor);
         aliasCommand.setTabCompleter(executor);
         commandMap.register(plugin.getDescription().getName().toLowerCase(Locale.ENGLISH), aliasCommand);
@@ -418,6 +460,43 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
             }
         }
         return matches;
+    }
+
+    private boolean canUseSubCommand(CommandSender sender, String subCommand) {
+        return switch (subCommand.toLowerCase(Locale.ENGLISH)) {
+            case "help" -> hasPermission(sender, PERMISSION_HELP);
+            case "give" -> hasPermission(sender, PERMISSION_GIVE);
+            case "end" -> hasPermission(sender, PERMISSION_END);
+            case "gifts" -> hasPermission(sender, PERMISSION_GIFTS);
+            case "reload" -> hasPermission(sender, PERMISSION_RELOAD);
+            case "addhand" -> hasPermission(sender, PERMISSION_ADDHAND);
+            case "debug" -> hasPermission(sender, PERMISSION_DEBUG) || hasPermission(sender, PERMISSION_DEBUG_TOGGLE);
+            default -> false;
+        };
+    }
+
+    private static boolean hasPermission(CommandSender sender, String permission) {
+        return sender.hasPermission(PERMISSION_ADMIN) || sender.hasPermission(permission);
+    }
+
+    private void sendNoPermission(CommandSender sender) {
+        TextUtils.sendRawMessage(sender, "<red>You do not have permission to use this command.");
+    }
+
+    private static Map<String, String> createPermissionDescriptions() {
+        Map<String, String> permissions = new LinkedHashMap<>();
+        permissions.put(PERMISSION_ADMIN, "allows all " + TextUtils.DISPLAY_NAME + " commands and overrides");
+        permissions.put(PERMISSION_STATUS, "shows /" + PRIMARY_COMMAND + " status output");
+        permissions.put(PERMISSION_HELP, "shows /" + PRIMARY_COMMAND + " help output");
+        permissions.put(PERMISSION_GIVE, "allows /" + PRIMARY_COMMAND + " give");
+        permissions.put(PERMISSION_GIFTS, "allows /" + PRIMARY_COMMAND + " gifts");
+        permissions.put(PERMISSION_ADDHAND, "allows /" + PRIMARY_COMMAND + " addhand");
+        permissions.put(PERMISSION_RELOAD, "allows /" + PRIMARY_COMMAND + " reload");
+        permissions.put(PERMISSION_DEBUG, "allows /" + PRIMARY_COMMAND + " debug");
+        permissions.put(PERMISSION_DEBUG_TOGGLE, "allows /" + PRIMARY_COMMAND + " debug toggle");
+        permissions.put(PERMISSION_END, "allows /" + PRIMARY_COMMAND + " end");
+        permissions.put(PERMISSION_TREE_OVERRIDE, "allows managing other players' trees");
+        return permissions;
     }
 
 }
