@@ -50,11 +50,14 @@ crystal:
 command:
  help:
    - '<green>Use <red>/xmastree</red> to show plugin version and status</green>'
-   - '<green>Use <red>/xmastree give</red> player to give a player a Christmas Crystal</green>'
+   - '<green>Use <red>/xmastree help</red> to show this command list</green>'
+   - '<green>Use <red>/xmastree give &lt;player&gt;</red> to give a player a Christmas Crystal</green>'
    - '<green>Use <red>/xmastree gifts</red> to spawn presents under all trees</green>'
    - '<green>Use <red>/xmastree addhand</red> to add your held item as a gift</green>'
    - '<green>Use <red>/xmastree reload</red> to reload the plugin config</green>'
-   - '<green>Use <red>/xmastree debug</red> for paginated status, commands, permissions, placeholders, and toggles</green>'
+   - '<green>Use <red>/xmastree debug</red> to open the status debug section</green>'
+   - '<green>Use <red>/xmastree debug status</red> and other categories for status, commands, permissions, placeholders, and toggles</green>'
+   - '<green>Use <red>/xmastree debug toggle &lt;key&gt; true|false</red> to change supported global toggles</green>'
    - '<green>Use <red>/xmastree end</red> to end the event</green>'
  player-offline: '<red>Player not found</red>'
  no-player-name: '<gold>Missing player name</gold>'

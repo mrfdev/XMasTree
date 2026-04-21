@@ -6,9 +6,11 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -33,6 +35,7 @@ final class XMasPlaceholders {
             "%onembxmastree_player.trees%",
             "%onembxmastree_version%"
     );
+    public static final Map<String, String> DESCRIPTIONS = createDescriptions();
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("dd-MM-yyyy HH-mm-ss");
 
     private XMasPlaceholders() {
@@ -123,5 +126,27 @@ final class XMasPlaceholders {
             }
         }
         return count;
+    }
+
+    private static Map<String, String> createDescriptions() {
+        Map<String, String> descriptions = new LinkedHashMap<>();
+        descriptions.put("%onembxmastree_event.active%", "whether the event is currently active");
+        descriptions.put("%onembxmastree_event.active_text%", "human-readable active state");
+        descriptions.put("%onembxmastree_event.status%", "current event status text");
+        descriptions.put("%onembxmastree_event.starts_at%", "event start mode");
+        descriptions.put("%onembxmastree_event.ends_at%", "configured event end date");
+        descriptions.put("%onembxmastree_event.ends_in%", "time remaining until the event ends");
+        descriptions.put("%onembxmastree_event.ends_timestamp%", "event end timestamp in milliseconds");
+        descriptions.put("%onembxmastree_event.auto_end%", "whether automatic ending is enabled");
+        descriptions.put("%onembxmastree_resource.back%", "whether resource refunds are enabled");
+        descriptions.put("%onembxmastree_resource.back_text%", "human-readable refund state");
+        descriptions.put("%onembxmastree_particles.enabled%", "whether XMas Tree particles are enabled");
+        descriptions.put("%onembxmastree_luck.enabled%", "whether gift luck chance is enabled");
+        descriptions.put("%onembxmastree_luck.chance%", "gift luck chance as a percent");
+        descriptions.put("%onembxmastree_trees.total%", "total loaded tree count");
+        descriptions.put("%onembxmastree_trees.owners%", "number of unique tree owners");
+        descriptions.put("%onembxmastree_player.trees%", "loaded trees owned by the placeholder player");
+        descriptions.put("%onembxmastree_version%", "loaded plugin version");
+        return descriptions;
     }
 }

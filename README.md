@@ -6,16 +6,15 @@ This fork keeps the old X-Mas event data usable for winter 2026 while moving the
 
 ![X-Mas tree preview](http://puu.sh/dKlK1/85c3dad454.jpg)
 
-## Current targets
+## Current target
 
-The Gradle build creates the legacy reference jar and the current Paper 26.1.2 target jar in `build/libs`:
+The Gradle build creates the current Paper 26.1.2 target jar in `build/libs`:
 
 | Jar | Purpose |
 | --- | --- |
-| `1MB-XMas-2026-v2.0.0-004-v21-1.21.8.jar` | Legacy reference jar copied from the deployed 2025 server jar. |
-| `1MB-XMas-2026-v2.0.1-011-v25-26.1.2.jar` | Modern Paper 26.1.2 build, Java 25 bytecode. |
+| `1MB-XMas-2026-v2.0.1-021-v25-26.1.2.jar` | Modern Paper 26.1.2 build, Java 25 bytecode. |
 
-The checked-in source targets Paper 26.1.2. The legacy jar is preserved so the deployed working 2025 behavior can be compared or rolled back during testing.
+The checked-in source targets Paper 26.1.2 only.
 
 ## Features
 
@@ -28,7 +27,7 @@ The checked-in source targets Paper 26.1.2. The legacy jar is preserved so the d
 - Existing `plugins/X-Mas/trees.yml` data remains the event data source.
 - Optional resource refunds when a tree is destroyed or cleaned up after the event.
 - Configurable per-stage particles using Paper 26.1.2 particle names.
-- `/xmastree debug` pages for status, commands, permissions, placeholders, and global boolean toggles.
+- `/xmastree debug` sections for `status`, `commands`, `permissions`, `placeholders`, and `config`, plus live global boolean toggles.
 - Primary `/xmastree` command with an optional legacy `/xmas` alias.
 - Optional PlaceholderAPI placeholders for CMI holograms, ajLeaderboards, scoreboards, and menus.
 - Legacy `trees.yml` world-name alias support for renamed destination worlds.
@@ -44,7 +43,7 @@ The checked-in source targets Paper 26.1.2. The legacy jar is preserved so the d
 
 For the 2026 target, use the modern Paper 26.1.2 jar:
 
-- Paper 26.1.2: `1MB-XMas-2026-v2.0.1-011-v25-26.1.2.jar`
+- Paper 26.1.2: `1MB-XMas-2026-v2.0.1-021-v25-26.1.2.jar`
 
 ## Building
 
@@ -54,9 +53,8 @@ Requirements:
 - Gradle
 - The current local dev/test setup in this repo uses `servers/Server-Two-Paper-26.1.2` for Paper API jars and local smoke testing
 - The current local dev/test setup in this repo uses `servers/Server-Two-Paper-26.1.2/plugins/PlaceholderAPI-2.12.3-DEV-265.jar` for the optional PlaceholderAPI compile-time classpath
-- The deployed legacy jar in `servers/Server-One-Paper-1.21.11/plugins` is only needed if you want the `legacyJar` copy task
 
-Build the current Paper 26.1.2 jar and the legacy reference jar:
+Build the current Paper 26.1.2 jar:
 
 ```bash
 gradle clean buildAllJars
@@ -72,12 +70,6 @@ The `paper2612Jar` task is kept as an alias:
 
 ```bash
 gradle paper2612Jar
-```
-
-Copy the deployed legacy jar into the requested legacy filename:
-
-```bash
-gradle legacyJar
 ```
 
 End users do not need the `servers/` folder. The build output jars are written to `build/libs/`, and those are the files you install on a Paper server.
@@ -98,9 +90,43 @@ If `core.commands.legacy-command-enabled` is `true`, the legacy `/xmas` alias is
 | `/xmastree gifts` | Spawns a small batch of presents under every loaded Christmas tree. |
 | `/xmastree addhand` | Adds the item in your main hand to the gift list and saves it to `config.yml`. |
 | `/xmastree reload` | Reloads config, locale, present heads, gifts, luck settings, command alias settings, and tree level requirements. |
-| `/xmastree debug [page]` | Shows paginated status, commands, permissions, placeholders, and toggleable global config keys. |
+| `/xmastree debug` | Opens the `status` debug section by default. |
+| `/xmastree debug [section\|page]` | Shows debug output for `status`, `commands`, `permissions`, `placeholders`, or `config`. Numeric pages `1-5` still work as a legacy shortcut. |
 | `/xmastree debug toggle <key> true\|false` | Toggles supported global boolean config keys and reloads the plugin config. |
 | `/xmastree end` | Ends the event and sets `core.plugin-enabled` to `false`. |
+
+### Debug sections
+
+The preferred debug syntax is category-based:
+
+| Section | Example | Purpose |
+| --- | --- | --- |
+| `status` | `/xmastree debug status` | Event state, end date, auto-end, refund state, particles, loaded tree count, and owner count. |
+| `commands` | `/xmastree debug commands` | Command list, debug syntax, and legacy alias state. |
+| `permissions` | `/xmastree debug permissions` | All registered `onembxmastree.*` permissions and what they allow. |
+| `placeholders` | `/xmastree debug placeholders` | All built-in PlaceholderAPI placeholders plus their descriptions. |
+| `config` | `/xmastree debug config` | The current values of the toggleable global config keys. |
+
+Numeric compatibility remains available for existing habits and old screenshots:
+
+| Page | Section |
+| --- | --- |
+| `1` | `status` |
+| `2` | `commands` |
+| `3` | `permissions` |
+| `4` | `placeholders` |
+| `5` | `config` |
+
+### Debug toggle keys
+
+`/xmastree debug toggle <key> true|false` currently supports:
+
+- `core.commands.legacy-command-enabled`
+- `core.plugin-enabled`
+- `core.holiday-ends.enabled`
+- `core.holiday-ends.resource-back`
+- `core.particles-enabled`
+- `xmas.luck.enabled`
 
 ## Permissions
 
@@ -113,7 +139,7 @@ If `core.commands.legacy-command-enabled` is `true`, the legacy `/xmas` alias is
 | `onembxmastree.command.gifts` | `op` | Allows `/xmastree gifts`. |
 | `onembxmastree.command.addhand` | `op` | Allows `/xmastree addhand`. |
 | `onembxmastree.command.reload` | `op` | Allows `/xmastree reload`. |
-| `onembxmastree.command.debug` | `op` | Allows `/xmastree debug [page]`. |
+| `onembxmastree.command.debug` | `op` | Allows `/xmastree debug [section\|page]`. |
 | `onembxmastree.command.debug.toggle` | `op` | Allows `/xmastree debug toggle <key> true\|false`. |
 | `onembxmastree.command.end` | `op` | Allows `/xmastree end`. |
 | `onembxmastree.tree.override` | `op` | Allows managing other players' trees. |
@@ -211,7 +237,7 @@ The dotted key after `onembxmastree_` is supported to keep the placeholders read
 | `%onembxmastree_trees.total%` | `14` | Total loaded X-Mas trees. |
 | `%onembxmastree_trees.owners%` | `6` | Number of unique loaded tree owners. |
 | `%onembxmastree_player.trees%` | `2` | Number of loaded trees owned by the placeholder player. |
-| `%onembxmastree_version%` | `2.0.1-011` | Loaded plugin version. |
+| `%onembxmastree_version%` | `2.0.1-021` | Loaded plugin version. |
 
 CMI hologram example:
 

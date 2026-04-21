@@ -40,8 +40,8 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
             "core.particles-enabled",
             "xmas.luck.enabled"
     ));
+    private static final Map<String, String> DEBUG_SECTIONS = createDebugSections();
     private static final Map<String, String> PERMISSIONS = createPermissionDescriptions();
-    private static final int DEBUG_PAGE_SIZE = 8;
     private static XMasCommand registeredExecutor;
     private static PluginCommand legacyAliasCommand;
 
@@ -190,7 +190,11 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
             }
         } else if (args[0].equalsIgnoreCase("debug")) {
             if (args.length == 2) {
-                suggestions.addAll(filterStartingWith(Arrays.asList("1", "2", "3", "toggle"), args[1]));
+                List<String> debugSuggestions = new ArrayList<>(DEBUG_SECTIONS.keySet());
+                if (hasPermission(sender, PERMISSION_DEBUG_TOGGLE)) {
+                    debugSuggestions.add("toggle");
+                }
+                suggestions.addAll(filterStartingWith(debugSuggestions, args[1]));
             } else if (args.length == 3 && args[1].equalsIgnoreCase("toggle")) {
                 suggestions.addAll(filterStartingWith(new ArrayList<>(DEBUG_TOGGLE_KEYS), args[2]));
             } else if (args.length == 4 && args[1].equalsIgnoreCase("toggle")) {
@@ -216,17 +220,20 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy kk-mm-ss");
         List<String> lines = new ArrayList<>();
 
-        lines.add("<dark_green>" + TextUtils.DISPLAY_NAME + " " + plugin.getDescription().getVersion() + " Plugin Status");
+        lines.add("<dark_green>" + TextUtils.DISPLAY_NAME + " <white>" + plugin.getDescription().getVersion() + "</white> <dark_green>Plugin Status");
         lines.add("");
-        lines.add("<gray>Event Status: " + (Main.inProgress ? "<dark_green>In Progress" : "<red>Holidays End"));
+        lines.add(formatKeyValue("Event Status", Main.inProgress ? "<green>In Progress" : "<red>Holidays End"));
         if (Main.inProgress) {
-            lines.add("<dark_green>Current Time: <green>" + sdf.format(System.currentTimeMillis()));
-            lines.add("<dark_green>Holidays end: <red>" + sdf.format(Main.endTime));
+            lines.add(formatKeyValue("Current Time", "<white>" + sdf.format(System.currentTimeMillis()) + "</white>"));
+            lines.add(formatKeyValue("Holidays End", "<white>" + sdf.format(Main.endTime) + "</white>"));
         }
-        lines.add("<green>Auto-End: " + (Main.autoEnd ? "<dark_green>Yes" : "<red>No") + "<green>    |    Resource Back: " + (Main.resourceBack ? "<dark_green>Yes" : "<red>No") + "<green>    |    Particles: " + (Main.particlesEnabled ? "<dark_green>Yes" : "<red>No"));
+        lines.add(formatKeyValue("Auto-End", booleanValue(Main.autoEnd)));
+        lines.add(formatKeyValue("Resource Back", booleanValue(Main.resourceBack)));
+        lines.add(formatKeyValue("Particles", booleanValue(Main.particlesEnabled)));
         lines.add("");
-        lines.add("<dark_green>There are <green>" + treeCount + "<dark_green> magic trees owned by <red>" + owners.size() + "<dark_green> players");
-        lines.add("<dark_green>Use <red>" + commandPath("help") + "<dark_green> for command list");
+        lines.add(formatKeyValue("Loaded Trees", "<white>" + treeCount + "</white>"));
+        lines.add(formatKeyValue("Tree Owners", "<white>" + owners.size() + "</white>"));
+        lines.add(formatKeyValue("Help", "<aqua>" + commandPath("help") + "</aqua>"));
         return lines;
     }
 
@@ -245,32 +252,42 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        int page = 1;
-        if (args.length >= 2) {
-            try {
-                page = Integer.parseInt(args[1]);
-            } catch (NumberFormatException ignored) {
-                page = 1;
-            }
+        if (args.length < 2) {
+            sendDebugSection(sender, "status");
+            return;
         }
-        sendDebugPage(sender, page);
+
+        String requested = args[1];
+        try {
+            int page = Integer.parseInt(requested);
+            sendDebugPage(sender, page);
+            return;
+        } catch (NumberFormatException ignored) {
+        }
+
+        String section = normalizeDebugSection(requested);
+        if (section == null) {
+            sendInvalidDebugSelection(sender, requested, DEBUG_SECTIONS.size());
+            return;
+        }
+        sendDebugSection(sender, section);
     }
 
     private void handleDebugToggle(CommandSender sender, String[] args) {
         if (args.length < 4) {
-            TextUtils.sendRawMessage(sender, "<gold>Usage: " + commandPath("debug toggle <key> true|false"));
-            TextUtils.sendRawMessage(sender, "<gray>Keys: " + String.join(", ", DEBUG_TOGGLE_KEYS));
+            TextUtils.sendRawMessage(sender, formatKeyValue("Usage", "<aqua>" + commandPath("debug toggle <key> true|false") + "</aqua>"));
+            TextUtils.sendRawMessage(sender, formatKeyValue("Keys", "<white>" + String.join(", ", DEBUG_TOGGLE_KEYS) + "</white>"));
             return;
         }
 
         String key = args[2].toLowerCase(Locale.ENGLISH);
         if (!DEBUG_TOGGLE_KEYS.contains(key)) {
-            TextUtils.sendRawMessage(sender, "<red>Unknown toggle key: " + args[2]);
-            TextUtils.sendRawMessage(sender, "<gray>Keys: " + String.join(", ", DEBUG_TOGGLE_KEYS));
+            TextUtils.sendRawMessage(sender, formatKeyValue("Unknown Toggle Key", "<red>" + args[2] + "</red>"));
+            TextUtils.sendRawMessage(sender, formatKeyValue("Keys", "<white>" + String.join(", ", DEBUG_TOGGLE_KEYS) + "</white>"));
             return;
         }
         if (!args[3].equalsIgnoreCase("true") && !args[3].equalsIgnoreCase("false")) {
-            TextUtils.sendRawMessage(sender, "<gold>Value must be true or false.");
+            TextUtils.sendRawMessage(sender, formatKeyValue("Value", "<red>must be true or false</red>"));
             return;
         }
 
@@ -278,60 +295,119 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
         plugin.getConfig().set(key, value);
         plugin.saveConfig();
         plugin.reloadPluginConfig();
-        TextUtils.sendRawMessage(sender, "<green>Set " + key + " to " + value + " and reloaded " + TextUtils.DISPLAY_NAME + ".");
+        TextUtils.sendRawMessage(sender, formatKeyValue("Updated", "<aqua>" + key + "</aqua><dark_gray> -> </dark_gray>" + booleanValue(value)));
+    }
+
+    private LinkedHashMap<String, List<String>> buildDebugSections() {
+        LinkedHashMap<String, List<String>> sections = new LinkedHashMap<>();
+        sections.put("status", getStatusLines());
+
+        List<String> commandsPage = new ArrayList<>();
+        commandsPage.add("");
+        commandsPage.add(formatSectionTitle("Commands"));
+        commandsPage.add(formatListEntry(commandPath(""), "status"));
+        commandsPage.add(formatListEntry(commandPath("help"), "command list"));
+        commandsPage.add(formatListEntry(commandPath("give <player>"), "give a Christmas Crystal"));
+        commandsPage.add(formatListEntry(commandPath("gifts"), "spawn presents under all trees"));
+        commandsPage.add(formatListEntry(commandPath("addhand"), "add held item to gifts"));
+        commandsPage.add(formatListEntry(commandPath("reload"), "reload config and locale"));
+        commandsPage.add(formatListEntry(commandPath("end"), "end the event"));
+        commandsPage.add(formatListEntry(commandPath("debug"), "open the status debug section"));
+        commandsPage.add(formatListEntry(commandPath("debug [section|page]"), "extended debug output by category"));
+        commandsPage.add(formatListEntry(commandPath("debug toggle <key> true|false"), "toggle global booleans"));
+        if (isLegacyAliasEnabled()) {
+            commandsPage.add(formatKeyValue("Legacy Alias", "<aqua>/" + LEGACY_COMMAND + "</aqua>"));
+        }
+        sections.put("commands", commandsPage);
+
+        List<String> permissionsPage = new ArrayList<>();
+        permissionsPage.add("");
+        permissionsPage.add(formatSectionTitle("Permissions"));
+        for (Map.Entry<String, String> permission : PERMISSIONS.entrySet()) {
+            permissionsPage.add(formatListEntry(permission.getKey(), permission.getValue()));
+        }
+        sections.put("permissions", permissionsPage);
+
+        List<String> placeholdersPage = new ArrayList<>();
+        placeholdersPage.add("");
+        placeholdersPage.add(formatSectionTitle("Placeholders"));
+        placeholdersPage.add(formatKeyValue("Notes", "<white>Requires PlaceholderAPI. Use '_' after prefix, then dotted keys.</white>"));
+        for (String placeholder : XMasPlaceholders.EXAMPLES) {
+            placeholdersPage.add(formatListEntry(placeholder, XMasPlaceholders.DESCRIPTIONS.getOrDefault(placeholder, "registered placeholder")));
+        }
+        sections.put("placeholders", placeholdersPage);
+
+        List<String> togglesPage = new ArrayList<>();
+        togglesPage.add("");
+        togglesPage.add(formatSectionTitle("Toggleable Config Keys"));
+        for (String key : DEBUG_TOGGLE_KEYS) {
+            togglesPage.add(formatKeyValue(key, booleanValue(plugin.getConfig().getBoolean(key))));
+        }
+        sections.put("config", togglesPage);
+
+        return sections;
+    }
+
+    private String normalizeDebugSection(String requested) {
+        if (requested == null || requested.isBlank()) {
+            return "status";
+        }
+        return switch (requested.toLowerCase(Locale.ENGLISH)) {
+            case "status" -> "status";
+            case "commands", "command" -> "commands";
+            case "permissions", "permission", "perms", "perm" -> "permissions";
+            case "placeholders", "placeholder", "papi" -> "placeholders";
+            case "config", "configuration", "cfg", "toggles" -> "config";
+            default -> null;
+        };
+    }
+
+    private void sendDebugSection(CommandSender sender, String sectionKey) {
+        LinkedHashMap<String, List<String>> sections = buildDebugSections();
+        if (!sections.containsKey(sectionKey)) {
+            sendInvalidDebugSelection(sender, sectionKey, sections.size());
+            return;
+        }
+        renderDebugSection(sender, sectionKey, sections);
     }
 
     private void sendDebugPage(CommandSender sender, int requestedPage) {
-        List<String> lines = new ArrayList<>(getStatusLines());
-        lines.add("");
-        lines.add("<gold>Commands");
-        lines.add("<gray>" + commandPath("") + " - status");
-        lines.add("<gray>" + commandPath("help") + " - command list");
-        lines.add("<gray>" + commandPath("give <player>") + " - give a Christmas Crystal");
-        lines.add("<gray>" + commandPath("gifts") + " - spawn presents under all trees");
-        lines.add("<gray>" + commandPath("addhand") + " - add held item to gifts");
-        lines.add("<gray>" + commandPath("reload") + " - reload config and locale");
-        lines.add("<gray>" + commandPath("end") + " - end the event");
-        lines.add("<gray>" + commandPath("debug [page]") + " - extended debug output");
-        lines.add("<gray>" + commandPath("debug toggle <key> true|false") + " - toggle global booleans");
-        if (isLegacyAliasEnabled()) {
-            lines.add("<gray>Legacy alias enabled: /" + LEGACY_COMMAND);
+        LinkedHashMap<String, List<String>> sections = buildDebugSections();
+        List<String> sectionKeys = new ArrayList<>(sections.keySet());
+        if (requestedPage < 1 || requestedPage > sectionKeys.size()) {
+            sendInvalidDebugSelection(sender, Integer.toString(requestedPage), sectionKeys.size());
+            return;
         }
-        lines.add("");
-        lines.add("<gold>Permissions");
-        for (Map.Entry<String, String> permission : PERMISSIONS.entrySet()) {
-            lines.add("<gray>" + permission.getKey() + " - " + permission.getValue());
-        }
-        lines.add("");
-        lines.add("<gold>Placeholders");
-        lines.add("<gray>Requires PlaceholderAPI. Use '_' after prefix, then dotted keys.");
-        for (String placeholder : XMasPlaceholders.EXAMPLES) {
-            lines.add("<gray>" + placeholder);
-        }
-        lines.add("");
-        lines.add("<gold>Toggleable Config Keys");
-        for (String key : DEBUG_TOGGLE_KEYS) {
-            lines.add("<gray>" + key + " = " + plugin.getConfig().getBoolean(key));
-        }
+        renderDebugSection(sender, sectionKeys.get(requestedPage - 1), sections);
+    }
 
-        int pages = Math.max(1, (int) Math.ceil((double) lines.size() / DEBUG_PAGE_SIZE));
-        int page = Math.max(1, Math.min(requestedPage, pages));
-        int start = (page - 1) * DEBUG_PAGE_SIZE;
-        int end = Math.min(start + DEBUG_PAGE_SIZE, lines.size());
+    private void renderDebugSection(CommandSender sender, String sectionKey, LinkedHashMap<String, List<String>> sections) {
+        List<String> sectionKeys = new ArrayList<>(sections.keySet());
+        int sectionIndex = sectionKeys.indexOf(sectionKey);
+        int page = sectionIndex + 1;
+        int pageCount = sectionKeys.size();
 
-        TextUtils.sendRawMessage(sender, "<dark_green>" + TextUtils.DISPLAY_NAME + " Debug <gray>page " + page + "/" + pages);
-        for (int i = start; i < end; i++) {
-            TextUtils.sendRawMessage(sender, lines.get(i));
+        TextUtils.sendRawMessage(sender, "<dark_green>" + TextUtils.DISPLAY_NAME + " Debug <white>" + DEBUG_SECTIONS.getOrDefault(sectionKey, sectionKey) + "</white><dark_gray> (" + page + "/" + pageCount + ")</dark_gray>");
+        for (String line : sections.get(sectionKey)) {
+            TextUtils.sendRawMessage(sender, line);
         }
-        if (page < pages) {
-            TextUtils.sendRawMessage(sender, "<gray>Next: " + commandPath("debug " + (page + 1)));
+        if (page < pageCount) {
+            String nextSection = sectionKeys.get(sectionIndex + 1);
+            TextUtils.sendRawMessage(sender, formatKeyValue("Next", "<aqua>" + commandPath("debug " + nextSection) + "</aqua>"));
         }
+    }
+
+    private void sendInvalidDebugSelection(CommandSender sender, String requested, int pageCount) {
+        TextUtils.sendRawMessage(sender, formatKeyValue("Debug Sections", "<white>" + String.join(", ", DEBUG_SECTIONS.keySet()) + "</white>"));
+        TextUtils.sendRawMessage(sender, formatKeyValue("Debug Pages", "<white>1-" + pageCount + "</white>"));
+        TextUtils.sendRawMessage(sender, formatKeyValue("Requested", "<red>" + requested + "</red>"));
+        TextUtils.sendRawMessage(sender, formatKeyValue("Try", "<aqua>" + commandPath("debug status") + "</aqua>"));
     }
 
     private List<String> getHelpLines() {
         List<String> lines = new ArrayList<>();
         for (String line : LocaleManager.COMMAND_HELP) {
-            lines.add(line.replace("/xmas", "/" + PRIMARY_COMMAND));
+            lines.add(line.replaceAll("/" + LEGACY_COMMAND + "(?![A-Za-z])", "/" + PRIMARY_COMMAND));
         }
         if (isLegacyAliasEnabled()) {
             lines.add("<gray>Legacy alias: <red>/" + LEGACY_COMMAND + "</red> still works.</gray>");
@@ -387,7 +463,7 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
             return;
         }
         aliasCommand.setDescription("Legacy alias for /" + PRIMARY_COMMAND);
-        aliasCommand.setUsage("/" + LEGACY_COMMAND + " [help|give|gifts|addhand|reload|debug|end]");
+        aliasCommand.setUsage("/" + LEGACY_COMMAND + " [help|give|gifts|addhand|reload|debug [section|page]|end]");
         aliasCommand.setPermission(null);
         aliasCommand.setExecutor(executor);
         aliasCommand.setTabCompleter(executor);
@@ -413,18 +489,25 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
                 knownCommandsField.setAccessible(true);
                 Object rawKnownCommands = knownCommandsField.get(simpleCommandMap);
                 if (rawKnownCommands instanceof Map<?, ?> rawMap) {
-                    Iterator<? extends Map.Entry<?, ?>> iterator = rawMap.entrySet().iterator();
-                    while (iterator.hasNext()) {
-                        Map.Entry<?, ?> entry = iterator.next();
+                    List<Object> keysToRemove = new ArrayList<>();
+                    for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
                         if (entry.getValue() == legacyAliasCommand) {
-                            iterator.remove();
+                            keysToRemove.add(entry.getKey());
                         }
+                    }
+                    for (Object key : keysToRemove) {
+                        removeKnownCommand(rawMap, key);
                     }
                 }
             } catch (ReflectiveOperationException ignored) {
             }
         }
         legacyAliasCommand = null;
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void removeKnownCommand(Map<?, ?> rawMap, Object key) {
+        ((Map) rawMap).remove(key);
     }
 
     private static CommandMap getCommandMap() {
@@ -483,6 +566,22 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
         TextUtils.sendRawMessage(sender, "<red>You do not have permission to use this command.");
     }
 
+    private String formatSectionTitle(String title) {
+        return "<gold><bold>" + title + "</bold></gold>";
+    }
+
+    private String formatListEntry(String key, String value) {
+        return "<aqua>" + key + "</aqua><dark_gray> : </dark_gray><white>" + value + "</white>";
+    }
+
+    private String formatKeyValue(String key, String value) {
+        return "<yellow>" + key + "</yellow><dark_gray>: </dark_gray>" + value;
+    }
+
+    private String booleanValue(boolean value) {
+        return value ? "<green>true</green>" : "<red>false</red>";
+    }
+
     private static Map<String, String> createPermissionDescriptions() {
         Map<String, String> permissions = new LinkedHashMap<>();
         permissions.put(PERMISSION_ADMIN, "allows all " + TextUtils.DISPLAY_NAME + " commands and overrides");
@@ -497,6 +596,16 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
         permissions.put(PERMISSION_END, "allows /" + PRIMARY_COMMAND + " end");
         permissions.put(PERMISSION_TREE_OVERRIDE, "allows managing other players' trees");
         return permissions;
+    }
+
+    private static Map<String, String> createDebugSections() {
+        Map<String, String> sections = new LinkedHashMap<>();
+        sections.put("status", "Status");
+        sections.put("commands", "Commands");
+        sections.put("permissions", "Permissions");
+        sections.put("placeholders", "Placeholders");
+        sections.put("config", "Config");
+        return sections;
     }
 
 }
