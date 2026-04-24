@@ -1,5 +1,6 @@
 package ru.meloncode.xmas;
 
+import com.destroystokyo.paper.profile.PlayerProfile;
 import org.bukkit.*;
 import org.bukkit.FireworkEffect.Type;
 import org.bukkit.block.*;
@@ -9,13 +10,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.FireworkMeta;
-import org.bukkit.metadata.FixedMetadataValue;
-import org.bukkit.profile.PlayerProfile;
 import org.bukkit.profile.PlayerTextures;
+import org.bukkit.persistence.PersistentDataType;
 import ru.meloncode.xmas.utils.TextUtils;
 import org.bukkit.util.Vector;
 
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.util.*;
 import java.util.Map.Entry;
@@ -175,7 +176,7 @@ public class MagicTree {
             FireworkMeta meta = fw.getFireworkMeta();
             meta.addEffect(FireworkEffect.builder().trail(true).withColor(Color.RED).withFade(Color.LIME).withFlicker().with(Type.BURST).build());
             fw.setFireworkMeta(meta);
-            fw.setMetadata("nodamage", new FixedMetadataValue(Main.getInstance(), true));
+            fw.getPersistentDataContainer().set(Main.getNoDamageFireworkKey(), PersistentDataType.BYTE, (byte) 1);
         }
         build();
         save();
@@ -209,7 +210,6 @@ public class MagicTree {
         }
     }
 
-    @SuppressWarnings("deprecation")
     public void spawnPresent() {
         if (!location.getChunk().isLoaded())
         {
@@ -232,13 +232,10 @@ public class MagicTree {
                     face = BlockFace.values()[Main.RANDOM.nextInt(BlockFace.values().length)];
                 }
                 while (face == BlockFace.DOWN || face == BlockFace.UP || face == BlockFace.SELF);
-                //skull.setRotation(face);
                 Rotatable skullRotatable = (Rotatable) skull.getBlockData();
                 skullRotatable.setRotation(face);
-                skull.setRotation(face);
-                //skull.setSkullType(SkullType.PLAYER);
+                skull.setBlockData(skullRotatable);
                 skull.setType(Material.PLAYER_HEAD);
-                //skull.setOwner();
                 applyConfiguredHead(skull, Main.getHeads().get(Main.RANDOM.nextInt(Main.getHeads().size())));
                 skull.update(true);
             }
@@ -251,21 +248,21 @@ public class MagicTree {
         }
         String trimmedHead = configuredHead.trim();
         if (!trimmedHead.contains("://")) {
-            skull.setOwningPlayer(Bukkit.getOfflinePlayer(trimmedHead));
+            skull.setPlayerProfile(Bukkit.createProfile(trimmedHead));
             return;
         }
         try {
-            URL skinUrl = new URL(trimmedHead);
+            URL skinUrl = URI.create(trimmedHead).toURL();
             if (!"textures.minecraft.net".equalsIgnoreCase(skinUrl.getHost())) {
                 Bukkit.getLogger().warning("[X-Mas] Ignoring non-Mojang present skin URL: " + trimmedHead);
                 return;
             }
-            PlayerProfile profile = Bukkit.createPlayerProfile(UUID.randomUUID());
+            PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
             PlayerTextures textures = profile.getTextures();
             textures.setSkin(skinUrl);
             profile.setTextures(textures);
-            skull.setOwnerProfile(profile);
-        } catch (MalformedURLException e) {
+            skull.setPlayerProfile(profile);
+        } catch (IllegalArgumentException | MalformedURLException e) {
             Bukkit.getLogger().warning("[X-Mas] Invalid present skin URL: " + trimmedHead);
         }
     }

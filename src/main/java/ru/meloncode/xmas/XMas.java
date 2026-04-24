@@ -93,12 +93,12 @@ class XMas {
     }
 
     static String getHeadIdentifier(Skull skull) {
-        if (skull.getOwnerProfile() != null
-                && skull.getOwnerProfile().getTextures() != null
-                && skull.getOwnerProfile().getTextures().getSkin() != null) {
-            return skull.getOwnerProfile().getTextures().getSkin().toString();
+        if (skull.getPlayerProfile() != null
+                && skull.getPlayerProfile().getTextures() != null
+                && skull.getPlayerProfile().getTextures().getSkin() != null) {
+            return skull.getPlayerProfile().getTextures().getSkin().toString();
         }
-        return skull.getOwner();
+        return skull.getOwningPlayer() != null ? skull.getOwningPlayer().getName() : null;
     }
 
     public static List<MagicTree> getTreesPlayerOwn(Player player) {

@@ -42,6 +42,7 @@ public class Main extends JavaPlugin implements Listener {
     private static int UPDATE_SPEED;
     private static int PARTICLES_DELAY;
     private static NamespacedKey crystalKey;
+    private static NamespacedKey noDamageFireworkKey;
     private static List<String> heads;
     private static Plugin plugin;
     private static final int MAX_SERIALIZED_GIFT_LENGTH = 65536;
@@ -61,6 +62,10 @@ public class Main extends JavaPlugin implements Listener {
         return crystalKey;
     }
 
+    public static NamespacedKey getNoDamageFireworkKey() {
+        return noDamageFireworkKey;
+    }
+
     @Override
     public void onLoad() {
         plugin = this;
@@ -70,6 +75,7 @@ public class Main extends JavaPlugin implements Listener {
     public void onEnable() {
         this.saveDefaults();
         crystalKey = new NamespacedKey(this, "xmas_crystal");
+        noDamageFireworkKey = new NamespacedKey(this, "no_damage_firework");
         config = getConfig();
         locale = config.getString("core.locale");
 

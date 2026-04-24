@@ -30,3 +30,6 @@ Thumbs.db
 
 # Local test servers and generated Paper data
 servers/
+
+# Local release jars for the centralized Paper runner
+libs/

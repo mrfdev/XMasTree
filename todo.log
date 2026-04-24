@@ -1,0 +1,8 @@
+Remaining warnings and deferred deprecation cleanup
+=================================================
+
+- `compileJava` still prints the generic note that some source uses deprecated API.
+- The remaining known spots are the block-skull profile accessors and setters in:
+  - `src/main/java/ru/meloncode/xmas/MagicTree.java`
+  - `src/main/java/ru/meloncode/xmas/XMas.java`
+- These were left in place on purpose because the newer block-skull `ResolvableProfile` route is not a clearly low-risk drop-in if we want to preserve the current texture URL and player-name behavior on both Paper versions.

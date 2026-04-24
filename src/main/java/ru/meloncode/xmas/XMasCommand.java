@@ -220,7 +220,7 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy kk-mm-ss");
         List<String> lines = new ArrayList<>();
 
-        lines.add("<dark_green>" + TextUtils.DISPLAY_NAME + " <white>" + plugin.getDescription().getVersion() + "</white> <dark_green>Plugin Status");
+        lines.add("<dark_green>" + TextUtils.DISPLAY_NAME + " <white>" + plugin.getPluginMeta().getVersion() + "</white> <dark_green>Plugin Status");
         lines.add("");
         lines.add(formatKeyValue("Event Status", Main.inProgress ? "<green>In Progress" : "<red>Holidays End"));
         if (Main.inProgress) {
@@ -467,7 +467,7 @@ public class XMasCommand implements CommandExecutor, TabCompleter {
         aliasCommand.setPermission(null);
         aliasCommand.setExecutor(executor);
         aliasCommand.setTabCompleter(executor);
-        commandMap.register(plugin.getDescription().getName().toLowerCase(Locale.ENGLISH), aliasCommand);
+        commandMap.register(plugin.getPluginMeta().getName().toLowerCase(Locale.ENGLISH), aliasCommand);
         legacyAliasCommand = aliasCommand;
         plugin.getLogger().info("Registered legacy alias '/" + LEGACY_COMMAND + "' for '/" + PRIMARY_COMMAND + "'.");
     }

@@ -4,6 +4,7 @@ import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -311,10 +312,10 @@ class Events implements Listener {
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     private void disableFireworkDamage(EntityDamageByEntityEvent e)
     {
-        if (e.getDamager().getType() == EntityType.FIREWORK_ROCKET) {
-            if (e.getDamager().hasMetadata("nodamage")) {
-                e.setCancelled(true);
-            }
+        if (e.getDamager().getType() == EntityType.FIREWORK_ROCKET
+                && e.getDamager() instanceof Firework firework
+                && firework.getPersistentDataContainer().has(Main.getNoDamageFireworkKey(), PersistentDataType.BYTE)) {
+            e.setCancelled(true);
         }
     }
 
@@ -332,11 +333,11 @@ class Events implements Listener {
     }
 
     private String getHeadIdentifier(SkullMeta meta) {
-        if (meta.getOwnerProfile() != null
-                && meta.getOwnerProfile().getTextures() != null
-                && meta.getOwnerProfile().getTextures().getSkin() != null) {
-            return meta.getOwnerProfile().getTextures().getSkin().toString();
+        if (meta.getPlayerProfile() != null
+                && meta.getPlayerProfile().getTextures() != null
+                && meta.getPlayerProfile().getTextures().getSkin() != null) {
+            return meta.getPlayerProfile().getTextures().getSkin().toString();
         }
-        return meta.getOwner();
+        return meta.getOwningPlayer() != null ? meta.getOwningPlayer().getName() : null;
     }
 }

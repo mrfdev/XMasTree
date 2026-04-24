@@ -63,7 +63,7 @@ final class XMasPlaceholders {
             case "trees_total" -> Integer.toString(XMas.getAllTrees().size());
             case "trees_owners" -> Integer.toString(countOwners(XMas.getAllTrees()));
             case "player_trees" -> Integer.toString(countPlayerTrees(player));
-            case "version" -> plugin.getDescription().getVersion();
+            case "version" -> plugin.getPluginMeta().getVersion();
             default -> null;
         };
     }

@@ -2,6 +2,7 @@ package ru.meloncode.xmas;
 
 //I plan to make this plugin bigger. So... 
 
+import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
@@ -77,14 +78,14 @@ public class ItemMaker {
     }
 
     public ItemMaker addLoreLine(String line) {
-        List<String> lore;
-        if (im.getLore() != null) {
-            lore = im.getLore();
+        List<Component> lore;
+        if (im.lore() != null) {
+            lore = new ArrayList<>(im.lore());
         } else {
             lore = new ArrayList<>();
         }
-        lore.add(line);
-        im.lore(TextUtils.parseList(lore));
+        lore.add(TextUtils.parse(line));
+        im.lore(lore);
 
         return this;
     }

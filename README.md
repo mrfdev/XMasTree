@@ -12,9 +12,9 @@ The Gradle build creates the current Paper 26.1.2 target jar in `build/libs`:
 
 | Jar | Purpose |
 | --- | --- |
-| `1MB-XMas-2026-v2.0.1-021-v25-26.1.2.jar` | Modern Paper 26.1.2 build, Java 25 bytecode. |
+| `1MB-XMas-2026-v2.0.1-023-v25-26.1.2.jar` | Modern Paper 26.1.2 build, Java 25 bytecode. |
 
-The checked-in source targets Paper 26.1.2 only.
+The checked-in source compiles against the centralized Paper 26.1.2 cache and declares a plugin compatibility floor of `api-version: 1.21.11` so the same jar can be tested on Paper 1.21.11 and Paper 26.1.2.
 
 ## Features
 
@@ -99,7 +99,7 @@ The checked-in source targets Paper 26.1.2 only.
 
 For the 2026 target, use the modern Paper 26.1.2 jar:
 
-- Paper 26.1.2: `1MB-XMas-2026-v2.0.1-021-v25-26.1.2.jar`
+- Paper 26.1.2: `1MB-XMas-2026-v2.0.1-023-v25-26.1.2.jar`
 
 ## Building
 
@@ -107,8 +107,10 @@ Requirements:
 
 - JDK 25
 - Gradle
-- The current local dev/test setup in this repo uses `servers/Server-Two-Paper-26.1.2` for Paper API jars and local smoke testing
-- The current local dev/test setup in this repo uses `servers/Server-Two-Paper-26.1.2/plugins/PlaceholderAPI-2.12.3-DEV-265.jar` for the optional PlaceholderAPI compile-time classpath
+- Centralized Paper server cache at `/Users/floris/Projects/Codex/servers/cache/Paper-26.1.2`
+- Centralized PlaceholderAPI jar at `/Users/floris/Projects/Codex/servers/cache/Paper-26.1.2/plugins/PlaceholderAPI-2.12.3-DEV-265.jar`
+
+This repo no longer uses a local `servers/` folder for compilation or testing. If a local `servers/` folder still exists here, it is ignored and treated as retired local data.
 
 Build the current Paper 26.1.2 jar:
 
@@ -128,9 +130,21 @@ The `paper2612Jar` task is kept as an alias:
 gradle paper2612Jar
 ```
 
-End users do not need the `servers/` folder. The build output jars are written to `build/libs/`, and those are the files you install on a Paper server.
+`buildAllJars` now:
 
-In this workspace, the current Gradle setup compiles against the Paper 26.1.2 API jars found in `servers/Server-Two-Paper-26.1.2`. If that folder is missing or has not been started far enough for Paper to download its libraries, Gradle will not have the local Paper API classpath it currently expects.
+- compiles against centralized Paper API `26.1.2.build.20-alpha`
+- keeps the Java release target at `25`
+- writes the standard jar to `build/libs/`
+- copies the same jar into `libs/` for the centralized test runner
+- prints the active build config, compile target, and declared plugin API floor
+
+You can also inspect the build metadata directly with:
+
+```bash
+gradle printBuildConfig
+```
+
+End users do not need any `servers/` folder. The installable jars are written to `build/libs/`, and this project also keeps a local copy in `libs/` for shared test-runner use.
 
 ## Commands
 
@@ -293,7 +307,7 @@ The dotted key after `onembxmastree_` is supported to keep the placeholders read
 | `%onembxmastree_trees.total%` | `14` | Total loaded X-Mas trees. |
 | `%onembxmastree_trees.owners%` | `6` | Number of unique loaded tree owners. |
 | `%onembxmastree_player.trees%` | `2` | Number of loaded trees owned by the placeholder player. |
-| `%onembxmastree_version%` | `2.0.1-021` | Loaded plugin version. |
+| `%onembxmastree_version%` | `2.0.1-023` | Loaded plugin version. |
 
 CMI hologram example:
 
@@ -319,7 +333,7 @@ ajLeaderboards placeholder examples:
 - When saved world names no longer match the current server world names, `migration.world-aliases` can remap them without rewriting `trees.yml`.
 - Existing present head player-name entries are still accepted, but new configs should prefer Mojang texture URLs.
 - The modern jars are compiled with Java 25 bytecode and should be run on Java 25.
-- The Paper 26.1.2 jar is the intended winter 2026 target. Paper 1.21.11 compatibility is no longer part of the active test path.
+- The Paper 26.1.2 jar is the intended winter 2026 target, and the same jar now declares `api-version: 1.21.11` so it can be smoke-tested on both Paper 1.21.11 and Paper 26.1.2.
 
 ## Security notes
 
