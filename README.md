@@ -12,7 +12,7 @@ The Gradle build creates the current Paper 26.1.2 target jar in `build/libs`:
 
 | Jar | Purpose |
 | --- | --- |
-| `1MB-XMas-2026-v2.0.1-023-v25-26.1.2.jar` | Modern Paper 26.1.2 build, Java 25 bytecode. |
+| `1MB-XMas-2026-v2.0.1-024-v25-26.1.2.jar` | Modern Paper 26.1.2 build, Java 25 bytecode. |
 
 The checked-in source compiles against the centralized Paper 26.1.2 cache and declares a plugin compatibility floor of `api-version: 1.21.11` so the same jar can be tested on Paper 1.21.11 and Paper 26.1.2.
 
@@ -31,6 +31,7 @@ The checked-in source compiles against the centralized Paper 26.1.2 cache and de
 - Primary `/xmastree` command with an optional legacy `/xmas` alias.
 - Optional PlaceholderAPI placeholders for CMI holograms, ajLeaderboards, scoreboards, and menus.
 - Legacy `trees.yml` world-name alias support for renamed destination worlds.
+- Comment-preserving `config.yml` syncing that keeps admin values while safely adding missing defaults and missing template comments.
 
 ## v2 changelog
 
@@ -99,7 +100,7 @@ The checked-in source compiles against the centralized Paper 26.1.2 cache and de
 
 For the 2026 target, use the modern Paper 26.1.2 jar:
 
-- Paper 26.1.2: `1MB-XMas-2026-v2.0.1-023-v25-26.1.2.jar`
+- Paper 26.1.2: `1MB-XMas-2026-v2.0.1-024-v25-26.1.2.jar`
 
 ## Building
 
@@ -307,7 +308,7 @@ The dotted key after `onembxmastree_` is supported to keep the placeholders read
 | `%onembxmastree_trees.total%` | `14` | Total loaded X-Mas trees. |
 | `%onembxmastree_trees.owners%` | `6` | Number of unique loaded tree owners. |
 | `%onembxmastree_player.trees%` | `2` | Number of loaded trees owned by the placeholder player. |
-| `%onembxmastree_version%` | `2.0.1-023` | Loaded plugin version. |
+| `%onembxmastree_version%` | `2.0.1-024` | Loaded plugin version. |
 
 CMI hologram example:
 

@@ -16,6 +16,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
+import ru.meloncode.xmas.utils.ConfigUtils;
 import ru.meloncode.xmas.utils.TextUtils;
 
 import java.io.File;
@@ -25,6 +26,7 @@ import java.util.Base64;
 import java.util.*;
 
 public class Main extends JavaPlugin implements Listener {
+    private static final String CONFIG_RESOURCE_PATH = "config.yml";
 
     // Yeah. That's as it should be.
     static final Random RANDOM = new Random(Calendar.getInstance().get(Calendar.YEAR));
@@ -64,6 +66,32 @@ public class Main extends JavaPlugin implements Listener {
 
     public static NamespacedKey getNoDamageFireworkKey() {
         return noDamageFireworkKey;
+    }
+
+    private File getPluginConfigFile() {
+        return new File(getDataFolder(), CONFIG_RESOURCE_PATH);
+    }
+
+    @Override
+    public FileConfiguration getConfig() {
+        if (config == null) {
+            config = ConfigUtils.loadManagedConfig(this, CONFIG_RESOURCE_PATH, getPluginConfigFile());
+        }
+        return config;
+    }
+
+    @Override
+    public void reloadConfig() {
+        config = ConfigUtils.loadManagedConfig(this, CONFIG_RESOURCE_PATH, getPluginConfigFile());
+    }
+
+    @Override
+    public void saveConfig() {
+        if (config == null) {
+            return;
+        }
+        ConfigUtils.synchronizeWithResource(this, CONFIG_RESOURCE_PATH, config);
+        ConfigUtils.saveConfig(getPluginConfigFile(), config);
     }
 
     @Override
@@ -346,7 +374,7 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     private void saveDefaults() {
-        this.saveDefaultConfig();
+        reloadConfig();
         plugin.saveResource("locales/default.yml", true);
         List<String> defaults = Arrays.asList("locales/en.yml", "locales/ru.yml", "locales/ru_santa.yml", "trees.yml");
         for (String path : defaults)

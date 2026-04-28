@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.onemb.xmas'
-version = '2.0.1-023'
+version = '2.0.1-024'
 def projectVersion = version.toString()
 
 def javaRelease = 25
