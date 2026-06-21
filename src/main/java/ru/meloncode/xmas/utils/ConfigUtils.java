@@ -5,6 +5,7 @@ import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
+import ru.meloncode.xmas.LocaleManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,7 +26,8 @@ public class ConfigUtils {
         try {
             configuration.loadFromString(Files.readString(file.toPath(), StandardCharsets.UTF_8));
         } catch (IOException | InvalidConfigurationException exception) {
-            Bukkit.getLogger().log(Level.WARNING, "Failed to load YAML configuration from " + file.getPath(), exception);
+            Bukkit.getLogger().log(Level.WARNING, LocaleManager.text("console.config.load-yaml-failed", "Failed to load YAML configuration from {file}",
+                    "{file}", file.getPath()), exception);
         }
         return configuration;
     }
@@ -44,33 +46,44 @@ public class ConfigUtils {
             return false;
         }
         YamlConfiguration defaults = loadResourceConfig(plugin, resourcePath);
-        return mergeDefaultsAndComments(yamlConfiguration, defaults);
+        return synchronizeWithDefaults(yamlConfiguration, defaults);
+    }
+
+    public static boolean synchronizeWithDefaults(FileConfiguration configuration, FileConfiguration defaults) {
+        if (!(configuration instanceof YamlConfiguration yamlConfiguration) || !(defaults instanceof YamlConfiguration defaultYaml)) {
+            return false;
+        }
+        return mergeDefaultsAndComments(yamlConfiguration, defaultYaml);
     }
 
     public static void saveConfig(File file, FileConfiguration configuration) {
         File parent = file.getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs()) {
-            Bukkit.getLogger().warning("Unable to create configuration directory " + parent.getPath());
+            Bukkit.getLogger().warning(LocaleManager.text("console.config.create-directory-failed", "Unable to create configuration directory {directory}",
+                    "{directory}", parent.getPath()));
             return;
         }
 
         try {
             configuration.save(file);
         } catch (IOException exception) {
-            Bukkit.getLogger().log(Level.WARNING, "Failed to save YAML configuration to " + file.getPath(), exception);
+            Bukkit.getLogger().log(Level.WARNING, LocaleManager.text("console.config.save-yaml-failed", "Failed to save YAML configuration to {file}",
+                    "{file}", file.getPath()), exception);
         }
     }
 
-    private static YamlConfiguration loadResourceConfig(JavaPlugin plugin, String resourcePath) {
+    public static YamlConfiguration loadResourceConfig(JavaPlugin plugin, String resourcePath) {
         YamlConfiguration configuration = newConfiguration();
         try (InputStream inputStream = plugin.getResource(resourcePath)) {
             if (inputStream == null) {
-                plugin.getLogger().warning("Missing bundled configuration resource: " + resourcePath);
+                plugin.getLogger().warning(LocaleManager.text("console.config.missing-bundled-resource", "Missing bundled configuration resource: {resource}",
+                        "{resource}", resourcePath));
                 return configuration;
             }
             configuration.loadFromString(new String(inputStream.readAllBytes(), StandardCharsets.UTF_8));
         } catch (IOException | InvalidConfigurationException exception) {
-            plugin.getLogger().log(Level.WARNING, "Failed to load bundled configuration resource " + resourcePath, exception);
+            plugin.getLogger().log(Level.WARNING, LocaleManager.text("console.config.load-bundled-resource-failed", "Failed to load bundled configuration resource {resource}",
+                    "{resource}", resourcePath), exception);
         }
         return configuration;
     }

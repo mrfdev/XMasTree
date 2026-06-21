@@ -27,6 +27,7 @@ import java.util.*;
 
 public class Main extends JavaPlugin implements Listener {
     private static final String CONFIG_RESOURCE_PATH = "config.yml";
+    private static final String TREES_RESOURCE_PATH = "trees.yml";
 
     // Yeah. That's as it should be.
     static final Random RANDOM = new Random(Calendar.getInstance().get(Calendar.YEAR));
@@ -45,12 +46,28 @@ public class Main extends JavaPlugin implements Listener {
     private static int PARTICLES_DELAY;
     private static NamespacedKey crystalKey;
     private static NamespacedKey noDamageFireworkKey;
+    private static NamespacedKey presentHeadKey;
+    private static NamespacedKey crystalRecipeKey;
     private static List<String> heads;
     private static Plugin plugin;
     private static final int MAX_SERIALIZED_GIFT_LENGTH = 65536;
     private FileConfiguration config;
     private String locale;
     private XMasPlaceholderExpansion placeholderExpansion;
+
+    public record ReloadSummary(
+            String locale,
+            int giftCount,
+            int presentHeadCount,
+            int treeCount,
+            int treeOwnerCount,
+            boolean particlesEnabled,
+            boolean resourceBack,
+            boolean legacyAliasEnabled,
+            float growFirstSoundVolume,
+            float growRepeatSoundVolume
+    ) {
+    }
 
     public static Plugin getInstance() {
         return plugin;
@@ -66,6 +83,10 @@ public class Main extends JavaPlugin implements Listener {
 
     public static NamespacedKey getNoDamageFireworkKey() {
         return noDamageFireworkKey;
+    }
+
+    public static NamespacedKey getPresentHeadKey() {
+        return presentHeadKey;
     }
 
     private File getPluginConfigFile() {
@@ -104,15 +125,18 @@ public class Main extends JavaPlugin implements Listener {
         this.saveDefaults();
         crystalKey = new NamespacedKey(this, "xmas_crystal");
         noDamageFireworkKey = new NamespacedKey(this, "no_damage_firework");
+        presentHeadKey = new NamespacedKey(this, "present_head");
+        crystalRecipeKey = new NamespacedKey(this, "xmas");
         config = getConfig();
-        locale = config.getString("core.locale");
+        locale = config.getString("core.locale", LocaleManager.DEFAULT_LOCALE_CODE);
+        LocaleManager.loadLocale(locale);
 
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy kk-mm-ss");
         inProgress = config.getBoolean("core.plugin-enabled", true);
         UPDATE_SPEED = config.getInt("core.update-speed");
         if (UPDATE_SPEED <= 0) {
-            TextUtils.sendConsoleMessage("Update speed must be > 0");
-            TextUtils.sendConsoleMessage("Setting value to default");
+            TextUtils.sendConsoleMessage(TextUtils.warning(LocaleManager.text("console.config.update-speed-invalid", "Update speed must be > 0")));
+            TextUtils.sendConsoleMessage(TextUtils.muted(LocaleManager.text("console.config.update-speed-reset", "Setting value to default")));
             config.set("core.update-speed", 7);
             UPDATE_SPEED = 7;
         }
@@ -132,17 +156,16 @@ public class Main extends JavaPlugin implements Listener {
             date = sdf.parse(config.getString("core.holiday-ends.date"));
             endTime = date.getTime();
         } catch (ParseException e1) {
-            TextUtils.sendConsoleMessage("<red>Unable to load date");
+            TextUtils.sendConsoleMessage(TextUtils.error(LocaleManager.text("console.config.unable-load-holiday-end-date", "Unable to load holiday end date")));
         }
         defineTreeLevels();
         for (World world : getServer().getWorlds()) {
             TreeSerializer.loadTrees(this, world);
         }
 
-        LocaleManager.loadLocale(locale);
         heads = config.getStringList("xmas.presents");
         if (heads.size() == 0) {
-            getLogger().warning("[X-Mas] Warning! No heads loaded! Presents can't spawn without box!");
+            getLogger().warning(LocaleManager.text("console.gifts.no-heads", "Warning! No heads loaded. Presents cannot spawn without a box head."));
             return;
         }
         gifts = new ArrayList<>();
@@ -151,11 +174,12 @@ public class Main extends JavaPlugin implements Listener {
             if (item != null) {
                 gifts.add(item);
             } else {
-                getLogger().warning("[X-Mas] Failed to load gift item: " + serializedItem);
+                getLogger().warning(LocaleManager.text("console.gifts.load-item-failed", "Failed to load gift item: {item}",
+                        "{item}", serializedItem));
             }
         }
         if (gifts.size() == 0) {
-            getLogger().warning("[X-Mas] Warning! No gifts loaded! No X-Mas without gifts!");
+            getLogger().warning(LocaleManager.text("console.gifts.no-gifts", "Warning! No gifts loaded. No X-Mas without gifts."));
             return;
         }
 
@@ -164,30 +188,8 @@ public class Main extends JavaPlugin implements Listener {
         new Events().registerListener();
         new MagicTask(this).runTaskTimer(this, 5, UPDATE_SPEED);
         new PlayParticlesTask(this).runTaskTimer(this, 5, PARTICLES_DELAY);
-        XMas.XMAS_CRYSTAL = new ItemMaker(Material.EMERALD, LocaleManager.CRYSTAL_NAME, LocaleManager.CRYSTAL_LORE).make();
-        ItemMeta crystalMeta = XMas.XMAS_CRYSTAL.getItemMeta();
-        if (crystalMeta != null) {
-            crystalMeta.getPersistentDataContainer().set(crystalKey, PersistentDataType.BYTE, (byte) 1);
-            XMas.XMAS_CRYSTAL.setItemMeta(crystalMeta);
-        }
-
-        ShapedRecipe grinderRecipe;
-        grinderRecipe = new ShapedRecipe(new NamespacedKey(this, "xmas"), XMas.XMAS_CRYSTAL).shape(" d ", "ded", " d ").setIngredient('d', Material.DIAMOND).setIngredient('e', Material.EMERALD);
-        Iterator<Recipe> recipes = getServer().recipeIterator();
-        boolean registered = false;
-        while (recipes.hasNext()) {
-            Recipe recipe = recipes.next();
-            if (recipe.equals(grinderRecipe)) {
-                registered = true;
-                break;
-            }
-
-        }
-        try {
-            if (!registered)
-                getServer().addRecipe(grinderRecipe);
-        } catch (Exception ignored) {
-        }
+        refreshCrystalItem();
+        registerCrystalRecipe();
         XMasCommand.register(this);
         registerPlaceholderApi();
         TextUtils.sendConsoleMessage(LocaleManager.PLUGIN_ENABLED);
@@ -205,10 +207,11 @@ public class Main extends JavaPlugin implements Listener {
         }
     }
 
-    public void reloadPluginConfig() {
+    public ReloadSummary reloadPluginConfig() {
         reloadConfig();
         config = getConfig();
-        locale = config.getString("core.locale");
+        locale = config.getString("core.locale", LocaleManager.DEFAULT_LOCALE_CODE);
+        LocaleManager.loadLocale(locale);
 
         inProgress = config.getBoolean("core.plugin-enabled", true);
         UPDATE_SPEED = config.getInt("core.update-speed");
@@ -229,11 +232,10 @@ public class Main extends JavaPlugin implements Listener {
             SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy kk-mm-ss");
             endTime = sdf.parse(config.getString("core.holiday-ends.date")).getTime();
         } catch (ParseException e) {
-            TextUtils.sendConsoleMessage("<red>Invalid holiday end date in config.yml");
+            TextUtils.sendConsoleMessage(TextUtils.error(LocaleManager.text("console.config.invalid-holiday-end-date", "Invalid holiday end date in config.yml")));
         }
 
         defineTreeLevels();
-        LocaleManager.loadLocale(locale);
         heads = config.getStringList("xmas.presents");
 
         gifts = new ArrayList<>();
@@ -242,14 +244,36 @@ public class Main extends JavaPlugin implements Listener {
             if (item != null) {
                 gifts.add(item);
             } else {
-                getLogger().warning("[X-Mas] Failed to deserialize gift item: " + serializedItem);
+                getLogger().warning(LocaleManager.text("console.gifts.deserialize-item-failed", "Failed to deserialize gift item: {item}",
+                        "{item}", serializedItem));
             }
         }
 
         LUCK_CHANCE_ENABLED = config.getBoolean("xmas.luck.enabled");
         LUCK_CHANCE = (float) config.getInt("xmas.luck.chance") / 100;
+        refreshCrystalItem();
+        registerCrystalRecipe();
         XMasCommand.refreshCommandConfiguration(this);
-        TextUtils.sendConsoleMessage("<green>Configuration reloaded!");
+        return createReloadSummary();
+    }
+
+    public ReloadSummary createReloadSummary() {
+        Set<UUID> owners = new HashSet<>();
+        for (MagicTree tree : XMas.getAllTrees()) {
+            owners.add(tree.getOwner());
+        }
+        return new ReloadSummary(
+                LocaleManager.getActiveLocaleCode(),
+                gifts != null ? gifts.size() : 0,
+                heads != null ? heads.size() : 0,
+                XMas.getAllTrees().size(),
+                owners.size(),
+                particlesEnabled,
+                resourceBack,
+                getConfig().getBoolean("core.commands.legacy-command-enabled", true),
+                growFirstSoundVolume,
+                growRepeatSoundVolume
+        );
     }
 
     private void loadSoundConfig() {
@@ -268,7 +292,8 @@ public class Main extends JavaPlugin implements Listener {
         ItemStack gift = item.clone();
         String serializedItem = serializeItem(gift);
         if (serializedItem == null) {
-            getLogger().warning("Failed to serialize item for saving to the gift list. Item: " + gift);
+            getLogger().warning(LocaleManager.text("console.gifts.serialize-list-item-failed", "Failed to serialize item for saving to the gift list. Item: {item}",
+                    "{item}", gift.toString()));
             return;
         }
 
@@ -279,12 +304,67 @@ public class Main extends JavaPlugin implements Listener {
         gifts.add(gift);
     }
 
+    public List<ItemStack> getGiftItems() {
+        List<ItemStack> snapshot = new ArrayList<>();
+        if (gifts == null) {
+            return snapshot;
+        }
+        for (ItemStack gift : gifts) {
+            if (gift != null) {
+                snapshot.add(gift.clone());
+            }
+        }
+        return snapshot;
+    }
+
+    public ItemStack rollGiftItem() {
+        if (gifts == null || gifts.isEmpty()) {
+            return null;
+        }
+        return gifts.get(RANDOM.nextInt(gifts.size())).clone();
+    }
+
+    public ItemStack removeGiftItem(int displayIndex) {
+        if (displayIndex < 1) {
+            return null;
+        }
+
+        List<String> giftList = config.getStringList("xmas.gifts");
+        int validIndex = 0;
+        for (int rawIndex = 0; rawIndex < giftList.size(); rawIndex++) {
+            ItemStack item = deserializeItem(giftList.get(rawIndex));
+            if (item == null) {
+                continue;
+            }
+            validIndex++;
+            if (validIndex == displayIndex) {
+                giftList.remove(rawIndex);
+                config.set("xmas.gifts", giftList);
+                saveConfig();
+                reloadGiftItemsFromConfig();
+                return item;
+            }
+        }
+        return null;
+    }
+
+    private void reloadGiftItemsFromConfig() {
+        gifts = new ArrayList<>();
+        for (String serializedItem : config.getStringList("xmas.gifts")) {
+            ItemStack item = deserializeItem(serializedItem);
+            if (item != null) {
+                gifts.add(item);
+            }
+        }
+    }
+
     private String serializeItem(ItemStack item) {
         try {
             byte[] serializedBytes = item.serializeAsBytes();
             return Base64.getEncoder().encodeToString(serializedBytes);
         } catch (Exception e) {
-            getLogger().severe("Failed to serialize item: " + e.getMessage());
+            getLogger().severe(LocaleManager.text("console.gifts.serialize-item-failed", "Failed to serialize item: {error}",
+                    "{error}", e.getMessage()));
             return null;
         }
     }
@@ -304,7 +384,8 @@ public class Main extends JavaPlugin implements Listener {
         }
 
         if (trimmed.length() > MAX_SERIALIZED_GIFT_LENGTH) {
-            Bukkit.getLogger().severe("[X-Mas] Gift item is too large to deserialize safely: " + trimmed.length() + " characters");
+            Bukkit.getLogger().severe(LocaleManager.text("console.gifts.too-large", "Gift item is too large to deserialize safely: {length} characters",
+                    "{length}", Integer.toString(trimmed.length())));
             return null;
         }
 
@@ -312,10 +393,12 @@ public class Main extends JavaPlugin implements Listener {
             byte[] serializedBytes = Base64.getDecoder().decode(trimmed);
             return ItemStack.deserializeBytes(serializedBytes);
         } catch (IllegalArgumentException e) {
-            Bukkit.getLogger().severe("[X-Mas] Invalid material name or Base64 gift item: " + trimmed);
+            Bukkit.getLogger().severe(LocaleManager.text("console.gifts.invalid-material-or-base64", "Invalid material name or Base64 gift item: {item}",
+                    "{item}", trimmed));
             return null;
         } catch (Exception e) {
-            Bukkit.getLogger().severe("[X-Mas] Failed to deserialize gift item: " + e.getMessage());
+            Bukkit.getLogger().severe(LocaleManager.text("console.gifts.deserialize-error", "Failed to deserialize gift item: {error}",
+                    "{error}", e.getMessage()));
             return null;
         }
     }
@@ -360,14 +443,15 @@ public class Main extends JavaPlugin implements Listener {
         }
         placeholderExpansion = new XMasPlaceholderExpansion(this);
         if (placeholderExpansion.register()) {
-            getLogger().info("Registered PlaceholderAPI expansion: " + XMasPlaceholders.IDENTIFIER);
+            getLogger().info(LocaleManager.text("console.placeholder.registered", "Registered PlaceholderAPI expansion: {identifier}",
+                    "{identifier}", XMasPlaceholders.IDENTIFIER));
         } else {
-            getLogger().warning("PlaceholderAPI is present, but placeholder registration failed.");
+            getLogger().warning(LocaleManager.text("console.placeholder.registration-failed", "PlaceholderAPI is present, but placeholder registration failed."));
         }
     }
 
     public void end() {
-        Bukkit.broadcast(TextUtils.parse("<green>" + LocaleManager.HAPPY_NEW_YEAR));
+        Bukkit.broadcast(TextUtils.parse(TextUtils.accent(LocaleManager.HAPPY_NEW_YEAR)));
         inProgress = false;
         config.set("core.plugin-enabled", false);
         saveConfig();
@@ -375,10 +459,31 @@ public class Main extends JavaPlugin implements Listener {
 
     private void saveDefaults() {
         reloadConfig();
-        plugin.saveResource("locales/default.yml", true);
-        List<String> defaults = Arrays.asList("locales/en.yml", "locales/ru.yml", "locales/ru_santa.yml", "trees.yml");
-        for (String path : defaults)
-            if (!new File(getDataFolder(), '/' + path).exists()) plugin.saveResource(path, false);
+        File treesFile = new File(getDataFolder(), TREES_RESOURCE_PATH);
+        if (!treesFile.exists()) {
+            plugin.saveResource(TREES_RESOURCE_PATH, false);
+        }
+    }
+
+    private void refreshCrystalItem() {
+        XMas.XMAS_CRYSTAL = new ItemMaker(Material.EMERALD, LocaleManager.CRYSTAL_NAME, LocaleManager.CRYSTAL_LORE).make();
+        ItemMeta crystalMeta = XMas.XMAS_CRYSTAL.getItemMeta();
+        if (crystalMeta != null) {
+            crystalMeta.getPersistentDataContainer().set(crystalKey, PersistentDataType.BYTE, (byte) 1);
+            XMas.XMAS_CRYSTAL.setItemMeta(crystalMeta);
+        }
+    }
+
+    private void registerCrystalRecipe() {
+        getServer().removeRecipe(crystalRecipeKey);
+        ShapedRecipe grinderRecipe = new ShapedRecipe(crystalRecipeKey, XMas.XMAS_CRYSTAL)
+                .shape(" d ", "ded", " d ")
+                .setIngredient('d', Material.DIAMOND)
+                .setIngredient('e', Material.EMERALD);
+        try {
+            getServer().addRecipe(grinderRecipe);
+        } catch (Exception ignored) {
+        }
     }
 
     private void defineTreeLevels() {
@@ -534,12 +639,15 @@ public class Main extends JavaPlugin implements Listener {
         try {
             particle = Particle.valueOf(configuredParticle.trim().toUpperCase(Locale.ENGLISH));
         } catch (IllegalArgumentException e) {
-            getLogger().warning("[X-Mas] Unknown particle '" + configuredParticle + "' at " + path + ". Using fallback.");
+            getLogger().warning(LocaleManager.text("console.particles.unknown", "Unknown particle '{particle}' at {path}. Using fallback.",
+                    "{particle}", configuredParticle,
+                    "{path}", path));
             return fallback;
         }
 
         if (particle.getDataType() != Void.class && particle != Particle.DUST) {
-            getLogger().warning("[X-Mas] Particle '" + particle.name() + "' needs extra data and is not supported in config yet. Using fallback.");
+            getLogger().warning(LocaleManager.text("console.particles.extra-data-unsupported", "Particle '{particle}' needs extra data and is not supported in config yet. Using fallback.",
+                    "{particle}", particle.name()));
             return fallback;
         }
 

@@ -8,6 +8,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.Skull;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 import ru.meloncode.xmas.utils.LocationUtils;
 import ru.meloncode.xmas.utils.TextUtils;
 
@@ -69,36 +70,34 @@ class XMas {
     }
 
     public static void processPresent(Block block, Player player) {
-        if (block.getType() == Material.PLAYER_HEAD) {
-            Skull skull = (Skull) block.getState();
-            String headId = getHeadIdentifier(skull);
+        if (!isPresentHead(block)) {
+            return;
+        }
 
-            if (headId != null && Main.getHeads().contains(headId)) {
-                Location loc = block.getLocation();
-                World world = loc.getWorld();
-                if (world != null) {
-                    if (RANDOM.nextFloat() < Main.LUCK_CHANCE || !Main.LUCK_CHANCE_ENABLED) {
-                        world.dropItemNaturally(loc, new ItemStack(Main.gifts.get(RANDOM.nextInt(Main.gifts.size()))));
-                        Effects.TREE_SWAG.playEffect(loc);
-                        TextUtils.sendMessage(player, LocaleManager.GIFT_LUCK);
-                    } else {
-                        Effects.SMOKE.playEffect(loc);
-                        world.dropItemNaturally(loc, new ItemStack(Material.COAL));
-                        TextUtils.sendMessage(player, LocaleManager.GIFT_FAIL);
-                    }
-                }
-                block.setType(Material.AIR);
+        Location loc = block.getLocation();
+        World world = loc.getWorld();
+        if (world != null) {
+            if (RANDOM.nextFloat() < Main.LUCK_CHANCE || !Main.LUCK_CHANCE_ENABLED) {
+                world.dropItemNaturally(loc, new ItemStack(Main.gifts.get(RANDOM.nextInt(Main.gifts.size()))));
+                Effects.TREE_SWAG.playEffect(loc);
+                TextUtils.sendMessage(player, LocaleManager.GIFT_LUCK);
+            } else {
+                Effects.SMOKE.playEffect(loc);
+                world.dropItemNaturally(loc, new ItemStack(Material.COAL));
+                TextUtils.sendMessage(player, LocaleManager.GIFT_FAIL);
             }
+            block.setType(Material.AIR);
         }
     }
 
-    static String getHeadIdentifier(Skull skull) {
-        if (skull.getPlayerProfile() != null
-                && skull.getPlayerProfile().getTextures() != null
-                && skull.getPlayerProfile().getTextures().getSkin() != null) {
-            return skull.getPlayerProfile().getTextures().getSkin().toString();
+    public static boolean isPresentHead(Block block) {
+        if (block == null || block.getType() != Material.PLAYER_HEAD) {
+            return false;
         }
-        return skull.getOwningPlayer() != null ? skull.getOwningPlayer().getName() : null;
+        if (!(block.getState() instanceof Skull skull)) {
+            return false;
+        }
+        return skull.getPersistentDataContainer().has(Main.getPresentHeadKey(), PersistentDataType.BYTE);
     }
 
     public static List<MagicTree> getTreesPlayerOwn(Player player) {

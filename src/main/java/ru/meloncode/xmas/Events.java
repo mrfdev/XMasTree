@@ -12,14 +12,12 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
-import org.bukkit.event.entity.ItemSpawnEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
 import ru.meloncode.xmas.utils.TextUtils;
 
@@ -41,7 +39,7 @@ class Events implements Listener {
         if (event.getHand() == EquipmentSlot.OFF_HAND) return; //Event firing for both hands
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             Block block = event.getClickedBlock();
-            if (block != null && block.getType() == Material.PLAYER_HEAD) {
+            if (XMas.isPresentHead(block)) {
                 XMas.processPresent(block, event.getPlayer());
             }
         }
@@ -50,7 +48,8 @@ class Events implements Listener {
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onPlayerOpenPresent(BlockBreakEvent event) {
         Block block = event.getBlock();
-        if (block != null && block.getType() == Material.PLAYER_HEAD) {
+        if (XMas.isPresentHead(block)) {
+            event.setDropItems(false);
             XMas.processPresent(block, event.getPlayer());
         }
     }
@@ -171,18 +170,6 @@ class Events implements Listener {
     }
 
     @EventHandler
-    public void onItemSpawn(ItemSpawnEvent event) {
-        ItemStack item = event.getEntity().getItemStack();
-        if (item.getType() == Material.PLAYER_HEAD) {
-            SkullMeta meta = (SkullMeta) item.getItemMeta();
-            String headId = getHeadIdentifier(meta);
-            if (headId != null && Main.getHeads().contains(headId)) {
-                event.setCancelled(true);
-            }
-        }
-    }
-
-    @EventHandler
     public void onPistonRetract(BlockPistonRetractEvent event) {
         if (MagicTree.isBlockBelongs(event.getBlock())) {
             event.setCancelled(true);
@@ -227,14 +214,14 @@ class Events implements Listener {
                                     XMas.removeTree(tree);
                                 }
                                 if (Main.inProgress)
-                                    TextUtils.sendMessage(player, "<green>" + LocaleManager.DESTROY_COMPLETE);
+                                    TextUtils.sendMessage(player, TextUtils.success(LocaleManager.DESTROY_COMPLETE));
                             } else {
                                 destroyers.put(player.getUniqueId(), System.currentTimeMillis());
                                 if (Main.inProgress)
-                                    TextUtils.sendMessage(player, "<red>" + LocaleManager.DESTROY_WARNING);
-                                TextUtils.sendMessage(player, "<dark_red>" + LocaleManager.DESTROY_TUT);
+                                    TextUtils.sendMessage(player, TextUtils.warning(LocaleManager.DESTROY_WARNING));
+                                TextUtils.sendMessage(player, TextUtils.muted(LocaleManager.DESTROY_TUT));
                                 if (Main.resourceBack) {
-                                    TextUtils.sendMessage(player, "<gold>" + LocaleManager.DESTROY_RESOURCE_BACK);
+                                    TextUtils.sendMessage(player, TextUtils.info(LocaleManager.DESTROY_RESOURCE_BACK));
                                 }
                             }
                         else {
@@ -247,9 +234,9 @@ class Events implements Listener {
                 case SPRUCE_LEAVES:
                 case GLOWSTONE:
                     if (Main.inProgress)
-                        TextUtils.sendMessage(player, "<dark_green>" + LocaleManager.DESTROY_LEAVES_SANTA);
+                        TextUtils.sendMessage(player, TextUtils.accent(LocaleManager.DESTROY_LEAVES_SANTA));
                     if (player.getUniqueId().equals(tree.getOwner()) || XMasCommand.canOverrideTree(player)) {
-                        TextUtils.sendMessage(player, "<red>" + LocaleManager.DESTROY_LEAVES_TUT);
+                        TextUtils.sendMessage(player, TextUtils.warning(LocaleManager.DESTROY_LEAVES_TUT));
                     } else {
                         TextUtils.sendMessage(player, LocaleManager.DESTROY_FAIL_OWNER);
                     }
@@ -263,14 +250,14 @@ class Events implements Listener {
                                 } else {
                                     XMas.removeTree(tree);
                                 }
-                                TextUtils.sendMessage(player, "<green>" + LocaleManager.DESTROY_COMPLETE);
+                                TextUtils.sendMessage(player, TextUtils.success(LocaleManager.DESTROY_COMPLETE));
                             } else {
                                 destroyers.put(player.getUniqueId(), System.currentTimeMillis());
                                 if (Main.inProgress)
-                                    TextUtils.sendMessage(player, "<red>" + LocaleManager.DESTROY_SAPLING);
-                                TextUtils.sendMessage(player, "<dark_red>" + LocaleManager.DESTROY_TUT);
+                                    TextUtils.sendMessage(player, TextUtils.warning(LocaleManager.DESTROY_SAPLING));
+                                TextUtils.sendMessage(player, TextUtils.muted(LocaleManager.DESTROY_TUT));
                                 if (Main.resourceBack) {
-                                    TextUtils.sendMessage(player, "<gold>" + LocaleManager.DESTROY_RESOURCE_BACK);
+                                    TextUtils.sendMessage(player, TextUtils.info(LocaleManager.DESTROY_RESOURCE_BACK));
                                 }
                             }
                         } else {
@@ -330,14 +317,5 @@ class Events implements Listener {
             if(tree.hasScheduledPresents())
                 tree.spawnScheduledPresents();
         }
-    }
-
-    private String getHeadIdentifier(SkullMeta meta) {
-        if (meta.getPlayerProfile() != null
-                && meta.getPlayerProfile().getTextures() != null
-                && meta.getPlayerProfile().getTextures().getSkin() != null) {
-            return meta.getPlayerProfile().getTextures().getSkin().toString();
-        }
-        return meta.getOwningPlayer() != null ? meta.getOwningPlayer().getName() : null;
     }
 }

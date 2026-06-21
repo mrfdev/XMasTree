@@ -1,6 +1,5 @@
 package ru.meloncode.xmas;
 
-import com.destroystokyo.paper.profile.PlayerProfile;
 import org.bukkit.*;
 import org.bukkit.FireworkEffect.Type;
 import org.bukkit.block.*;
@@ -10,14 +9,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.FireworkMeta;
-import org.bukkit.profile.PlayerTextures;
 import org.bukkit.persistence.PersistentDataType;
+import ru.meloncode.xmas.utils.HeadProfileUtils;
 import ru.meloncode.xmas.utils.TextUtils;
 import org.bukkit.util.Vector;
 
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URL;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
@@ -225,8 +221,7 @@ public class MagicTree {
         {
             pBlock.setType(Material.PLAYER_HEAD);
             BlockState state = pBlock.getState();
-            if (state instanceof Skull) {
-                Skull skull = (Skull) state;
+            if (state instanceof Skull skull) {
                 BlockFace face;
                 do {
                     face = BlockFace.values()[Main.RANDOM.nextInt(BlockFace.values().length)];
@@ -236,34 +231,14 @@ public class MagicTree {
                 skullRotatable.setRotation(face);
                 skull.setBlockData(skullRotatable);
                 skull.setType(Material.PLAYER_HEAD);
-                applyConfiguredHead(skull, Main.getHeads().get(Main.RANDOM.nextInt(Main.getHeads().size())));
+                HeadProfileUtils.applyConfiguredHead(
+                        skull,
+                        Main.getHeads().get(Main.RANDOM.nextInt(Main.getHeads().size())),
+                        Main.getInstance().getLogger()
+                );
+                skull.getPersistentDataContainer().set(Main.getPresentHeadKey(), PersistentDataType.BYTE, (byte) 1);
                 skull.update(true);
             }
-        }
-    }
-
-    private void applyConfiguredHead(Skull skull, String configuredHead) {
-        if (configuredHead == null || configuredHead.trim().isEmpty()) {
-            return;
-        }
-        String trimmedHead = configuredHead.trim();
-        if (!trimmedHead.contains("://")) {
-            skull.setPlayerProfile(Bukkit.createProfile(trimmedHead));
-            return;
-        }
-        try {
-            URL skinUrl = URI.create(trimmedHead).toURL();
-            if (!"textures.minecraft.net".equalsIgnoreCase(skinUrl.getHost())) {
-                Bukkit.getLogger().warning("[X-Mas] Ignoring non-Mojang present skin URL: " + trimmedHead);
-                return;
-            }
-            PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
-            PlayerTextures textures = profile.getTextures();
-            textures.setSkin(skinUrl);
-            profile.setTextures(textures);
-            skull.setPlayerProfile(profile);
-        } catch (IllegalArgumentException | MalformedURLException e) {
-            Bukkit.getLogger().warning("[X-Mas] Invalid present skin URL: " + trimmedHead);
         }
     }
 
@@ -300,7 +275,7 @@ public class MagicTree {
                     continue;
                 }
                 bl = location.clone().add(x, 0, z).getBlock();
-                if (bl.getType() == Material.PLAYER_HEAD) {
+                if (XMas.isPresentHead(bl)) {
                     bl.setType(Material.AIR);
                 }
             }
@@ -316,14 +291,14 @@ public class MagicTree {
         List<ItemStack> leftovers = putRefundsInContainer(Material.CHEST, refundItems);
         if (leftovers != null) {
             dropRefunds(leftovers);
-            notifyRefund(refundTarget, "<green>Your tree resources were returned in a chest.</green>");
+            notifyRefund(refundTarget, TextUtils.success(LocaleManager.text("messages.tree.refund.chest", "Your tree resources were returned in a chest.")));
             return;
         }
 
         leftovers = putRefundsInContainer(Material.BARREL, refundItems);
         if (leftovers != null) {
             dropRefunds(leftovers);
-            notifyRefund(refundTarget, "<green>Your tree resources were returned in a barrel.</green>");
+            notifyRefund(refundTarget, TextUtils.success(LocaleManager.text("messages.tree.refund.barrel", "Your tree resources were returned in a barrel.")));
             return;
         }
 
@@ -331,9 +306,9 @@ public class MagicTree {
         dropRefunds(leftovers);
         if (refundTarget != null) {
             if (leftovers.isEmpty()) {
-                notifyRefund(refundTarget, "<green>Your tree resources were returned to your inventory.</green>");
+                notifyRefund(refundTarget, TextUtils.success(LocaleManager.text("messages.tree.refund.inventory", "Your tree resources were returned to your inventory.")));
             } else {
-                notifyRefund(refundTarget, "<gold>Your tree resources were returned. Inventory overflow dropped at the tree.</gold>");
+                notifyRefund(refundTarget, TextUtils.info(LocaleManager.text("messages.tree.refund.inventory-overflow", "Your tree resources were returned. Inventory overflow dropped at the tree.")));
             }
         }
     }
@@ -359,6 +334,10 @@ public class MagicTree {
         return refundItems;
     }
 
+    public List<ItemStack> getRefundPreviewItems() {
+        return collectRefundItems();
+    }
+
     private void addRequirements(List<ItemStack> refundItems, Map<Material, Integer> requirements) {
         if (requirements == null || requirements.isEmpty()) {
             return;
@@ -379,7 +358,9 @@ public class MagicTree {
                 return addItems(container.getInventory(), refundItems);
             }
         } catch (Exception e) {
-            Bukkit.getLogger().warning("[X-Mas] Failed to place refund " + containerMaterial + ": " + e.getMessage());
+            Bukkit.getLogger().warning(LocaleManager.text("console.refund.place-container-failed", "Failed to place refund {container}: {error}",
+                    "{container}", containerMaterial.name(),
+                    "{error}", e.getMessage()));
         }
         refundBlock.setType(Material.AIR, false);
         return null;

@@ -35,7 +35,6 @@ final class XMasPlaceholders {
             "%onembxmastree_player.trees%",
             "%onembxmastree_version%"
     );
-    public static final Map<String, String> DESCRIPTIONS = createDescriptions();
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("dd-MM-yyyy HH-mm-ss");
 
     private XMasPlaceholders() {
@@ -48,15 +47,21 @@ final class XMasPlaceholders {
         String key = normalize(params);
         return switch (key) {
             case "event_active" -> Boolean.toString(Main.inProgress);
-            case "event_active_text" -> Main.inProgress ? "Active" : "Inactive";
-            case "event_status" -> Main.inProgress ? "In Progress" : "Holidays End";
-            case "event_starts_at" -> "manual";
+            case "event_active_text" -> Main.inProgress
+                    ? LocaleManager.text("placeholders.values.active", "Active")
+                    : LocaleManager.text("placeholders.values.inactive", "Inactive");
+            case "event_status" -> Main.inProgress
+                    ? LocaleManager.text("placeholders.values.in-progress", "In Progress")
+                    : LocaleManager.text("placeholders.values.holidays-end", "Holidays End");
+            case "event_starts_at" -> LocaleManager.text("placeholders.values.manual", "manual");
             case "event_ends_at" -> formatEndDate();
             case "event_ends_in" -> formatDurationUntilEnd();
             case "event_ends_timestamp" -> Long.toString(Main.endTime);
             case "event_auto_end" -> Boolean.toString(Main.autoEnd);
             case "resource_back" -> Boolean.toString(Main.resourceBack);
-            case "resource_back_text" -> Main.resourceBack ? "Yes" : "No";
+            case "resource_back_text" -> Main.resourceBack
+                    ? LocaleManager.text("placeholders.values.yes", "Yes")
+                    : LocaleManager.text("placeholders.values.no", "No");
             case "particles_enabled" -> Boolean.toString(Main.particlesEnabled);
             case "luck_enabled" -> Boolean.toString(Main.LUCK_CHANCE_ENABLED);
             case "luck_chance" -> Integer.toString(Math.round(Main.LUCK_CHANCE * 100));
@@ -77,21 +82,21 @@ final class XMasPlaceholders {
 
     private static String formatEndDate() {
         if (Main.endTime <= 0) {
-            return "unknown";
+            return LocaleManager.text("placeholders.values.unknown", "unknown");
         }
         return DATE_FORMAT.format(new Date(Main.endTime));
     }
 
     private static String formatDurationUntilEnd() {
         if (!Main.autoEnd) {
-            return "disabled";
+            return LocaleManager.text("placeholders.values.disabled", "disabled");
         }
         if (Main.endTime <= 0) {
-            return "unknown";
+            return LocaleManager.text("placeholders.values.unknown", "unknown");
         }
         long remainingMillis = Main.endTime - System.currentTimeMillis();
         if (remainingMillis <= 0) {
-            return "ended";
+            return LocaleManager.text("placeholders.values.ended", "ended");
         }
 
         long totalSeconds = remainingMillis / 1000;
@@ -99,12 +104,17 @@ final class XMasPlaceholders {
         long hours = (totalSeconds % 86400) / 3600;
         long minutes = (totalSeconds % 3600) / 60;
         if (days > 0) {
-            return days + "d " + hours + "h";
+            return LocaleManager.text("placeholders.values.duration-days-hours", "{days}d {hours}h",
+                    "{days}", Long.toString(days),
+                    "{hours}", Long.toString(hours));
         }
         if (hours > 0) {
-            return hours + "h " + minutes + "m";
+            return LocaleManager.text("placeholders.values.duration-hours-minutes", "{hours}h {minutes}m",
+                    "{hours}", Long.toString(hours),
+                    "{minutes}", Long.toString(minutes));
         }
-        return minutes + "m";
+        return LocaleManager.text("placeholders.values.duration-minutes", "{minutes}m",
+                "{minutes}", Long.toString(minutes));
     }
 
     private static int countOwners(Collection<MagicTree> trees) {
@@ -128,25 +138,25 @@ final class XMasPlaceholders {
         return count;
     }
 
-    private static Map<String, String> createDescriptions() {
+    public static Map<String, String> descriptions() {
         Map<String, String> descriptions = new LinkedHashMap<>();
-        descriptions.put("%onembxmastree_event.active%", "whether the event is currently active");
-        descriptions.put("%onembxmastree_event.active_text%", "human-readable active state");
-        descriptions.put("%onembxmastree_event.status%", "current event status text");
-        descriptions.put("%onembxmastree_event.starts_at%", "event start mode");
-        descriptions.put("%onembxmastree_event.ends_at%", "configured event end date");
-        descriptions.put("%onembxmastree_event.ends_in%", "time remaining until the event ends");
-        descriptions.put("%onembxmastree_event.ends_timestamp%", "event end timestamp in milliseconds");
-        descriptions.put("%onembxmastree_event.auto_end%", "whether automatic ending is enabled");
-        descriptions.put("%onembxmastree_resource.back%", "whether resource refunds are enabled");
-        descriptions.put("%onembxmastree_resource.back_text%", "human-readable refund state");
-        descriptions.put("%onembxmastree_particles.enabled%", "whether XMas Tree particles are enabled");
-        descriptions.put("%onembxmastree_luck.enabled%", "whether gift luck chance is enabled");
-        descriptions.put("%onembxmastree_luck.chance%", "gift luck chance as a percent");
-        descriptions.put("%onembxmastree_trees.total%", "total loaded tree count");
-        descriptions.put("%onembxmastree_trees.owners%", "number of unique tree owners");
-        descriptions.put("%onembxmastree_player.trees%", "loaded trees owned by the placeholder player");
-        descriptions.put("%onembxmastree_version%", "loaded plugin version");
+        descriptions.put("%onembxmastree_event.active%", LocaleManager.text("placeholders.descriptions.event-active", "whether the event is currently active"));
+        descriptions.put("%onembxmastree_event.active_text%", LocaleManager.text("placeholders.descriptions.event-active-text", "human-readable active state"));
+        descriptions.put("%onembxmastree_event.status%", LocaleManager.text("placeholders.descriptions.event-status", "current event status text"));
+        descriptions.put("%onembxmastree_event.starts_at%", LocaleManager.text("placeholders.descriptions.event-starts-at", "event start mode"));
+        descriptions.put("%onembxmastree_event.ends_at%", LocaleManager.text("placeholders.descriptions.event-ends-at", "configured event end date"));
+        descriptions.put("%onembxmastree_event.ends_in%", LocaleManager.text("placeholders.descriptions.event-ends-in", "time remaining until the event ends"));
+        descriptions.put("%onembxmastree_event.ends_timestamp%", LocaleManager.text("placeholders.descriptions.event-ends-timestamp", "event end timestamp in milliseconds"));
+        descriptions.put("%onembxmastree_event.auto_end%", LocaleManager.text("placeholders.descriptions.event-auto-end", "whether automatic ending is enabled"));
+        descriptions.put("%onembxmastree_resource.back%", LocaleManager.text("placeholders.descriptions.resource-back", "whether resource refunds are enabled"));
+        descriptions.put("%onembxmastree_resource.back_text%", LocaleManager.text("placeholders.descriptions.resource-back-text", "human-readable refund state"));
+        descriptions.put("%onembxmastree_particles.enabled%", LocaleManager.text("placeholders.descriptions.particles-enabled", "whether XMas Tree particles are enabled"));
+        descriptions.put("%onembxmastree_luck.enabled%", LocaleManager.text("placeholders.descriptions.luck-enabled", "whether gift luck chance is enabled"));
+        descriptions.put("%onembxmastree_luck.chance%", LocaleManager.text("placeholders.descriptions.luck-chance", "gift luck chance as a percent"));
+        descriptions.put("%onembxmastree_trees.total%", LocaleManager.text("placeholders.descriptions.trees-total", "total loaded tree count"));
+        descriptions.put("%onembxmastree_trees.owners%", LocaleManager.text("placeholders.descriptions.trees-owners", "number of unique tree owners"));
+        descriptions.put("%onembxmastree_player.trees%", LocaleManager.text("placeholders.descriptions.player-trees", "loaded trees owned by the placeholder player"));
+        descriptions.put("%onembxmastree_version%", LocaleManager.text("placeholders.descriptions.version", "loaded plugin version"));
         return descriptions;
     }
 }

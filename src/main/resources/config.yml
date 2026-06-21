@@ -18,9 +18,12 @@ core:
  # - Turning it back on after the plugin has already ended the event is safest with a full server restart.
  plugin-enabled: true
 
- # Locale file name loaded from plugins/X-Mas/locales/<locale>.yml.
+ # Translation file loaded from plugins/X-Mas/translations/locale_<locale>.yml.
  # Default: en
- # Safe values: a locale file name without .yml, for example en, ru, or ru_santa
+ # Safe values:
+ # - en -> plugins/X-Mas/translations/locale_en.yml
+ # - fr -> plugins/X-Mas/translations/locale_fr.yml
+ # - locale_en.yml also works, but short locale codes are preferred
  # Reload behavior: /xmastree reload applies immediately.
  locale: en
 

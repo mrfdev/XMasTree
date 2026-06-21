@@ -1,8 +1,95 @@
 Remaining warnings and deferred deprecation cleanup
 =================================================
 
-- `compileJava` still prints the generic note that some source uses deprecated API.
-- The remaining known spots are the block-skull profile accessors and setters in:
-  - `src/main/java/ru/meloncode/xmas/MagicTree.java`
-  - `src/main/java/ru/meloncode/xmas/XMas.java`
-- These were left in place on purpose because the newer block-skull `ResolvableProfile` route is not a clearly low-risk drop-in if we want to preserve the current texture URL and player-name behavior on both Paper versions.
+- `compileJava` is clean after the Paper 26.x deprecation sweep.
+- Present heads are now tagged with plugin PDC data, so gift detection no longer depends on deprecated skull-profile reads.
+- The active custom-fork target is now Paper 26.2 with Java 25 bytecode.
+- To run an explicit deprecation lint pass in future work, use:
+  - `gradle clean compileJava -PlintDeprecatedApi=true`
+- Head texture application now uses a reflective bridge to Paper's current profile APIs so the plugin can preserve existing player-name and texture-URL configs without keeping deprecated profile methods in the compiled code.
+
+
+Modernization and quality-of-life roadmap
+=========================================
+
+Near-term implementation candidates
+-----------------------------------
+
+- Finish MiniMessage theme polish:
+  - move any remaining visible colors, labels, and wording into `translations/locale_en.yml`
+  - tune the soft 1MB pastel theme for chat, debug pages, crystal text, requirement lists, and refund messages
+
+- Add admin preview and test commands:
+  - done: inspect tree state
+  - done: preview particles by tree stage with `/xmastree test particle`
+  - done: test first/repeat grow sounds with `/xmastree test sound`
+  - later: test refund delivery safely
+
+- Improve tree inspection:
+  - show owner, tree UUID, level, world/location, remaining requirements, spent/refundable resources, present timer, scheduled presents, and whether it can level up
+  - policy-must: existing trees from previous years must keep working; returning players waited for their legacy tree and should be able to keep it while receiving another crystal this year, letting them have two trees and earn more gifts
+
+- Add gift management UI:
+  - done: view configured gifts with `/xmastree gifts list`
+  - add held item
+  - done: remove gifts with `/xmastree gifts remove <index>`
+  - done: test a gift roll with `/xmastree gifts roll`
+  - eventually support weighted gift pools
+
+- Modernize PlaceholderAPI output:
+  - player tree count
+  - player highest tree level
+  - total active trees
+  - event status text
+  - future timer/status values useful for CMI holograms and ajLeaderboards
+
+- Add safer data tools:
+  - done: backup `trees.yml` with `/xmastree data backup`
+  - done: validate saved tree data with `/xmastree data validate`
+  - done: dry-run/apply saved world-name migration with `/xmastree data migrate-world <from> <to> [dry-run|apply]`
+  - report missing worlds, invalid owners, invalid levels, and duplicate/overlapping tree data
+
+- Continue present head and texture cleanup:
+  - verify Paper 26.2 profile behavior for player names and texture URLs
+  - improve diagnostics around invalid head entries
+
+- Add a reload report:
+  - show locale, gift count, present head count, tree count, tree owner count, particles setting, sound volumes, legacy alias state, and any warnings
+
+Future feature ideas to review
+------------------------------
+
+- Add event streaks:
+  - 6 gift claims in a day for a "hardcore elf" style daily milestone
+  - 7 days in a row
+  - every day of the event/month
+  - add a player command or GUI to view streak progress and claim milestone rewards
+  - possible milestone reward: trigger extra gifts for all online players
+
+- Add one extra progression level after the current max tree:
+  - "super tree" or similarly festive final stage
+  - modern Paper 26.2 particles/effects
+  - distinctive design for returning players who can upgrade their old max tree once more
+
+- Add seasonal admin presets:
+  - save/load named config presets for gift pools, particle styles, sound tuning, and event dates
+
+- Add player tree journal:
+  - command or GUI showing a player's tree history, current tree locations, old legacy tree, current-year tree, upgrade progress, and collected milestone rewards
+
+- Add community milestones:
+  - total server-wide gifts opened
+  - total trees grown
+  - unlock server-wide bonus gift waves when thresholds are reached
+
+- Add configurable tree protection helpers:
+  - staff-only teleport to a tree
+  - flag trees in unsafe/unloaded/missing worlds
+  - optional highlight particles around a selected tree for support checks
+
+- Add event wrap-up report:
+  - final tree count
+  - active owners
+  - gifts spawned/opened
+  - legacy trees preserved
+  - players eligible for returning-player rewards

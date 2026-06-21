@@ -73,7 +73,9 @@ public class ParticleContainer {
                         player.spawnParticle(type, location, count, offsetX, offsetY, offsetZ, speed);
                     }
                 } catch (Exception e) {
-                    Bukkit.getLogger().warning("[X-Mas] Failed to spawn particle " + type + ": " + e.getMessage());
+                    Bukkit.getLogger().warning(LocaleManager.text("console.particles.spawn-failed", "Failed to spawn particle {particle}: {error}",
+                            "{particle}", type.name(),
+                            "{error}", e.getMessage()));
                 }
             }
     }
